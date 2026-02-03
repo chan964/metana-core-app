@@ -1,12 +1,13 @@
-interface LogoProps {
-  className?: string;
-}
-export function Logo({
-  className
-}: LogoProps) {
-  return <span className={`text-2xl font-bold tracking-tight ${className || ''}`}>
-      <span className="text-primary">​Metana
-    </span>
-      
-    </span>;
+import { Link } from "react-router-dom";
+
+export function Logo({ className }: LogoProps) {
+  return (
+    <Link to="/" className={`inline-flex items-center ${className || ""}`}>
+      <img
+        src="https://metana.io/wp-content/uploads/2022/07/Metana-Logo.png"
+        alt="Metana Expert Coding Bootcamps"
+        className="h-8 w-[160px] object-contain"
+      />
+    </Link>
+  );
 }
