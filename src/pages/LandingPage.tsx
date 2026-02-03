@@ -3,33 +3,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/Logo';
 import { ArrowRight, FileEdit, Send, CheckCircle, Lock } from 'lucide-react';
-
-const submissionStates = [
-  {
-    state: 'Draft',
-    description: 'Your work-in-progress. Edit and save your answers until you\'re ready to submit.',
-    icon: FileEdit,
-  },
-  {
-    state: 'Submitted',
-    description: 'Your module has been submitted for grading. No further edits are allowed.',
-    icon: Send,
-  },
-  {
-    state: 'Graded',
-    description: 'Your instructor has reviewed your submission. Awaiting grade release.',
-    icon: CheckCircle,
-  },
-  {
-    state: 'Finalised',
-    description: 'Grades are released. View your scores and detailed feedback.',
-    icon: Lock,
-  },
-];
-
+const submissionStates = [{
+  state: 'Draft',
+  description: 'Your work-in-progress. Edit and save your answers until you\'re ready to submit.',
+  icon: FileEdit
+}, {
+  state: 'Submitted',
+  description: 'Your module has been submitted for grading. No further edits are allowed.',
+  icon: Send
+}, {
+  state: 'Graded',
+  description: 'Your instructor has reviewed your submission. Awaiting grade release.',
+  icon: CheckCircle
+}, {
+  state: 'Finalised',
+  description: 'Grades are released. View your scores and detailed feedback.',
+  icon: Lock
+}];
 export default function LandingPage() {
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center justify-between">
@@ -48,9 +40,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="container py-24 text-center">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Educational Assessment Platform
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">Cybersecurity Capstone </h1>
           <p className="mt-6 text-lg text-muted-foreground">
             A comprehensive platform for managing educational assessments, from module creation 
             to grading and feedback. Designed for students, instructors, and administrators.
@@ -77,13 +67,11 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {submissionStates.map((item, index) => (
-              <Card key={item.state} className="relative overflow-hidden">
+            {submissionStates.map((item, index) => <Card key={item.state} className="relative overflow-hidden">
                 <div className="absolute left-0 top-0 h-1 w-full bg-primary/20" />
-                <div 
-                  className="absolute left-0 top-0 h-1 bg-primary transition-all" 
-                  style={{ width: `${((index + 1) / 4) * 100}%` }} 
-                />
+                <div className="absolute left-0 top-0 h-1 bg-primary transition-all" style={{
+              width: `${(index + 1) / 4 * 100}%`
+            }} />
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-primary/10 p-2">
@@ -97,8 +85,7 @@ export default function LandingPage() {
                     {item.description}
                   </CardDescription>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -109,6 +96,5 @@ export default function LandingPage() {
           <p>© {new Date().getFullYear()} metana. All rights reserved.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 }
