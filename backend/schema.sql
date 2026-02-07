@@ -1,10 +1,13 @@
 CREATE TYPE role AS ENUM ('admin', 'instructor', 'student');
 CREATE TYPE submission_status AS ENUM ('draft', 'submitted', 'graded', 'finalised');
+CREATE TYPE module_status AS ENUM ('draft', 'published', 'archived');
 
 CREATE TABLE users (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
   role role NOT NULL,
+  password_hash TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT now()
 );
 
@@ -12,6 +15,9 @@ CREATE TABLE modules (
   id UUID PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
+  status module_status NOT NULL DEFAULT 'draft',
+  ready_for_publish BOOLEAN DEFAULT false,
+  published_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT now()
 );
 

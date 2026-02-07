@@ -4,13 +4,12 @@ export type UserRole = 'student' | 'instructor' | 'admin';
 // Submission states (MANDATORY - use ONLY these)
 export type SubmissionState = 'draft' | 'submitted' | 'graded' | 'finalised';
 
-// User type
 export interface User {
   id: string;
   email: string;
-  name: string;
+  full_name: string | null;
   role: UserRole;
-  createdAt: string;
+  created_at: string;
 }
 
 // Artefact type
@@ -42,7 +41,7 @@ export interface Question {
 }
 
 // Module type
-export interface Module {
+export interface LegacyModule {
   id: string;
   title: string;
   description: string;
@@ -54,6 +53,35 @@ export interface Module {
   instructorId?: string;
   createdAt: string;
 }
+
+
+export interface ModuleInstructor {
+  id: string;
+  full_name?: string | null;
+  email: string;
+}
+
+export interface ModuleStudent {
+  id: string;
+  full_name?: string | null;
+  email: string;
+}
+
+export interface Module {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'draft' | 'published' | 'archived';
+  ready_for_publish?: boolean;
+  published_at?: Date | string | null;
+  createdAt: Date;
+  submissionStart?: Date;
+  submissionEnd?: Date;
+  instructors: ModuleInstructor[];
+  students?: ModuleStudent[];
+}
+
+
 
 // Student answer for a sub-question
 export interface SubQuestionAnswer {

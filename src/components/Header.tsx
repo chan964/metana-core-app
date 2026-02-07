@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut } from 'lucide-react';
+import { User as UserIcon, LogOut } from 'lucide-react';
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -36,8 +36,8 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
-                <User className="h-4 w-4" />
-                <span>{user.name}</span>
+                <UserIcon className="h-4 w-4" />
+                <span>{user.full_name ?? user.email}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

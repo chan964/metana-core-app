@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
-import { getAllModules, deleteModule, assignInstructor, enrollStudent } from '@/api/modules';
+import {
+  getAllModules,
+  deleteModule,
+  assignInstructor,
+  enrollStudent,
+  createAdminModule,
+  markModuleReady,
+  publishModule,
+  archiveModule, 
+} from '@/api/modules';
 import { getAllUsers } from '@/api/users';
 import { Module, User } from '@/types';
+import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -38,19 +51,33 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Label } from '@/components/ui/label';
-import { Trash2, UserPlus, GraduationCap } from 'lucide-react';
+import { Trash2, UserPlus, GraduationCap, Plus, ChevronDown, ChevronUp, Check, BookOpen, Archive } from 'lucide-react';
 
 export function ModuleManagement() {
   const [modules, setModules] = useState<Module[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
+
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
+
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState('');
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newModule, setNewModule] = useState({
+    title: '',
+    description: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -58,219 +85,475 @@ export function ModuleManagement() {
 
   async function fetchData() {
     try {
-      const [modulesResponse, usersResponse] = await Promise.all([
+      const [modulesRes, usersRes] = await Promise.all([
         getAllModules(),
         getAllUsers(),
       ]);
-      if (modulesResponse.data) setModules(modulesResponse.data);
-      if (usersResponse.data) setUsers(usersResponse.data);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
+
+      setModules(modulesRes?.data ?? []);
+      setUsers(usersRes?.data ?? []);
+    } catch (err) {
+      console.error('Failed to fetch modules/users:', err);
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function handleDeleteModule(id: string) {
-    try {
-      await deleteModule(id);
-      setModules(modules.filter((m) => m.id !== id));
-    } catch (error) {
-      console.error('Failed to delete module:', error);
-    }
-  }
-
-  async function handleAssignInstructor() {
-    if (!selectedModule || !selectedUserId) return;
-    try {
-      await assignInstructor(selectedModule.id, selectedUserId);
-      setAssignDialogOpen(false);
-      setSelectedUserId('');
-      fetchData();
-    } catch (error) {
-      console.error('Failed to assign instructor:', error);
-    }
-  }
-
-  async function handleEnrollStudent() {
-    if (!selectedModule || !selectedUserId) return;
-    try {
-      await enrollStudent(selectedModule.id, selectedUserId);
-      setEnrollDialogOpen(false);
-      setSelectedUserId('');
-    } catch (error) {
-      console.error('Failed to enroll student:', error);
     }
   }
 
   const instructors = users.filter((u) => u.role === 'instructor');
   const students = users.filter((u) => u.role === 'student');
 
-  const getInstructorName = (instructorId?: string) => {
-    if (!instructorId) return 'Unassigned';
-    const instructor = users.find((u) => u.id === instructorId);
-    return instructor?.name || 'Unknown';
+  const renderInstructors = (
+    instructors: Module["instructors"]
+  ) => {
+    if (!instructors || instructors.length === 0) {
+      return "Unassigned";
+    }
+
+    return instructors
+      .map((i) => i.full_name ?? i.email)
+      .join(", ");
+  };
+
+
+  const handleCreateModule = async () => {
+    const res = await createAdminModule({
+      title: newModule.title,
+      description: newModule.description || undefined,
+    });
+
+    setModules((prev) => [res.data, ...prev]);
+    setCreateDialogOpen(false);
+    setNewModule({ title: '', description: '' });
   };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Module Management</CardTitle>
-        <CardDescription>
-          Manage modules, assign instructors, and enroll students
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Module Management</CardTitle>
+          <CardDescription>
+            Create modules, assign instructors, and enroll students
+          </CardDescription>
+        </div>
+
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Module
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Module</DialogTitle>
+              <DialogDescription>
+                Create a new empty module shell.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input
+                  value={newModule.title}
+                  onChange={(e) =>
+                    setNewModule({ ...newModule, title: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={newModule.description}
+                  onChange={(e) =>
+                    setNewModule({
+                      ...newModule,
+                      description: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleCreateModule}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
+
       <CardContent>
         {isLoading ? (
           <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
+            {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
         ) : modules.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
-            No modules found. Modules are created via the backend API.
+            No modules found.
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Instructor</TableHead>
-                <TableHead>Questions</TableHead>
-                <TableHead className="w-40">Actions</TableHead>
+                <TableHead>Enrolled Students</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-48">Actions</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {modules.map((module) => (
-                <TableRow key={module.id}>
-                  <TableCell>
-                    <div>
+                <>
+                  <TableRow key={module.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() =>
+                          setExpandedModuleId(
+                            expandedModuleId === module.id ? null : module.id
+                          )
+                        }
+                      >
+                        {expandedModuleId === module.id ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       <div className="font-medium">{module.title}</div>
-                      <div className="text-sm text-muted-foreground line-clamp-1">
-                        {module.description}
+                      <div className="text-sm text-muted-foreground">
+                        {module.description || 'No description'}
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getInstructorName(module.instructorId)}</TableCell>
-                  <TableCell>{module.partA.length + module.partB.length}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Dialog
-                        open={assignDialogOpen && selectedModule?.id === module.id}
-                        onOpenChange={(open) => {
-                          setAssignDialogOpen(open);
-                          if (open) setSelectedModule(module);
-                        }}
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Assign Instructor">
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Assign Instructor</DialogTitle>
-                            <DialogDescription>
-                              Select an instructor for "{module.title}"
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="py-4">
-                            <Label>Instructor</Label>
-                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                              <SelectTrigger className="mt-2">
-                                <SelectValue placeholder="Select instructor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {instructors.map((instructor) => (
-                                  <SelectItem key={instructor.id} value={instructor.id}>
-                                    {instructor.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleAssignInstructor}>Assign</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                    </TableCell>
 
-                      <Dialog
-                        open={enrollDialogOpen && selectedModule?.id === module.id}
-                        onOpenChange={(open) => {
-                          setEnrollDialogOpen(open);
-                          if (open) setSelectedModule(module);
-                        }}
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="Enroll Student">
-                            <GraduationCap className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Enroll Student</DialogTitle>
-                            <DialogDescription>
-                              Enroll a student in "{module.title}"
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="py-4">
-                            <Label>Student</Label>
-                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                              <SelectTrigger className="mt-2">
-                                <SelectValue placeholder="Select student" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {students.map((student) => (
-                                  <SelectItem key={student.id} value={student.id}>
-                                    {student.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setEnrollDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleEnrollStudent}>Enroll</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                    <TableCell>
+                      {renderInstructors(module.instructors)}
+                    </TableCell>
 
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {module.students?.length || 0}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant="outline">{module.status}</Badge>
+                    </TableCell>
+
+                    <TableCell className="flex gap-2">
+                    {/* ASSIGN INSTRUCTOR */}
+                    <Dialog
+                      open={
+                        assignDialogOpen &&
+                        selectedModule?.id === module.id
+                      }
+                      onOpenChange={setAssignDialogOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setSelectedModule(module)}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Assign Instructor</DialogTitle>
+                        </DialogHeader>
+
+                        <Select onValueChange={setSelectedUserId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select instructor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {instructors.map((i) => (
+                              <SelectItem key={i.id} value={i.id}>
+                                {i.full_name ?? i.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <DialogFooter>
+                          <Button
+                            onClick={async () => {
+                              try {
+                                const response = await assignInstructor(
+                                  module.id,
+                                  selectedUserId
+                                );
+                                if (response.data) {
+                                  setAssignDialogOpen(false);
+                                  setSelectedUserId('');
+                                  fetchData();
+                                  toast.success('Instructor assigned successfully');
+                                }
+                              } catch (error: any) {
+                                const errorMessage = error.message || '';
+                                if (errorMessage.includes('already assigned')) {
+                                  toast.error('Instructor is already assigned to this module');
+                                } else {
+                                  toast.error('Failed to assign instructor');
+                                }
+                                console.error('Failed to assign instructor:', error);
+                              }
+                            }}
+                          >
+                            Assign
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Module</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{module.title}"? This action cannot be
-                              undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteModule(module.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* ENROLL STUDENT */}
+                    <Dialog
+                      open={
+                        enrollDialogOpen &&
+                        selectedModule?.id === module.id
+                      }
+                      onOpenChange={setEnrollDialogOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setSelectedModule(module)}
+                        >
+                          <GraduationCap className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Enroll Student</DialogTitle>
+                        </DialogHeader>
+
+                        <Select onValueChange={setSelectedUserId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select student" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {students.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.full_name ?? s.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <DialogFooter>
+                          <Button
+                            onClick={async () => {
+                              try {
+                                const response = await enrollStudent(
+                                  module.id,
+                                  selectedUserId
+                                );
+                                if (response.data) {
+                                  // Update modules list with new enrollment
+                                  setModules(modules.map((m) => 
+                                    m.id === module.id ? response.data : m
+                                  ));
+                                  setEnrollDialogOpen(false);
+                                  setSelectedUserId('');
+                                  toast.success('Student enrolled successfully');
+                                }
+                              } catch (error: any) {
+                                if (error.message.includes('already enrolled')) {
+                                  toast.error('Student is already enrolled in this module');
+                                } else {
+                                  toast.error('Failed to enroll student');
+                                }
+                                console.error('Failed to enroll student:', error);
+                              }
+                            }}
+                          >
+                            Enroll
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* READY FOR PUBLISH (Instructor Only, Draft Only) */}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={module.status !== 'draft' || module.ready_for_publish}
+                      title={
+                        module.status !== 'draft'
+                          ? 'Only available for draft modules'
+                          : module.ready_for_publish
+                          ? 'Already marked as ready'
+                          : 'Mark module as ready for publishing'
+                      }
+                      onClick={async () => {
+                        try {
+                          const response = await markModuleReady(module.id);
+                          if (response.data) {
+                            setModules(modules.map((m) =>
+                              m.id === module.id ? response.data : m
+                            ));
+                            toast.success('Module marked as ready for publishing');
+                          }
+                        } catch (error: any) {
+                          toast.error(error.message || 'Failed to mark module as ready');
+                          console.error('Failed to mark module as ready:', error);
+                        }
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+
+                    {/* PUBLISH (Admin Only, Draft Only, Ready Required) */}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={module.status !== 'draft' || !module.ready_for_publish}
+                      title={
+                        module.status !== 'draft'
+                          ? 'Only available for draft modules'
+                          : !module.ready_for_publish
+                          ? 'Module must be marked as ready first'
+                          : 'Publish module'
+                      }
+                      onClick={async () => {
+                        try {
+                          const response = await publishModule(module.id);
+                          if (response.data) {
+                            setModules(modules.map((m) =>
+                              m.id === module.id ? response.data : m
+                            ));
+                            toast.success('Module published successfully');
+                          }
+                        } catch (error: any) {
+                          toast.error(error.message || 'Failed to publish module');
+                          console.error('Failed to publish module:', error);
+                        }
+                      }}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                    </Button>
+
+                    {/* ARCHIVE (Admin Only, Published Only) */}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={module.status !== 'published'}
+                      title={
+                        module.status !== 'published'
+                          ? 'Only published modules can be archived'
+                          : 'Archive module'
+                      }
+                      onClick={async () => {
+                        try {
+                          const response = await archiveModule(module.id);
+                          if (response.data) {
+                            setModules(modules.map((m) =>
+                              m.id === module.id ? response.data : m
+                            ));
+                            toast.success('Module archived successfully');
+                          }
+                        } catch (error: any) {
+                          toast.error(error.message || 'Failed to archive module');
+                          console.error('Failed to archive module:', error);
+                        }
+                      }}
+                    >
+                      <Archive className="h-4 w-4" />
+                    </Button>
+
+                    {/* DELETE MODULE */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Module</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{module.title}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              try {
+                                await deleteModule(module.id);
+                                setModules((prev) =>
+                                  prev.filter((m) => m.id !== module.id)
+                                );
+                                toast.success('Module deleted successfully');
+                              } catch (error) {
+                                toast.error('Failed to delete module');
+                                console.error('Failed to delete module:', error);
+                              }
+                            }}
+                            className="bg-destructive text-destructive-foreground"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))}
+
+                {/* EXPANDED ROW: Enrolled Students */}
+                {expandedModuleId === module.id && (
+                  <TableRow className="bg-muted/30">
+                    <TableCell colSpan={6} className="p-4">
+                      <div>
+                        <h4 className="mb-3 font-semibold">Enrolled Students</h4>
+                        {module.students && module.students.length > 0 ? (
+                          <div className="space-y-2">
+                            {module.students.map((student) => (
+                              <div
+                                key={student.id}
+                                className="flex items-center justify-between rounded-md bg-background p-2 text-sm"
+                              >
+                                <div>
+                                  <div className="font-medium">
+                                    {student.full_name || 'No name'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {student.email}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No students enrolled yet.
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            ))}
             </TableBody>
           </Table>
         )}

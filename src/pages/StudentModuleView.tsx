@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getModuleById } from '@/api/modules';
 import { getSubmission, saveDraft, submitModule } from '@/api/submissions';
-import { Module, ModuleSubmission, SubQuestionAnswer } from '@/types';
+import { LegacyModule, ModuleSubmission, SubQuestionAnswer } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ArtefactList } from '@/components/ArtefactList';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ import { ArrowLeft, Save, Send, CheckCircle, Info } from 'lucide-react';
 export default function StudentModuleView() {
   const { moduleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
-  const [module, setModule] = useState<Module | null>(null);
+  const [module, setModule] = useState<LegacyModule | null>(null);
   const [submission, setSubmission] = useState<ModuleSubmission | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
