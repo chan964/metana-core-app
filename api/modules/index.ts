@@ -80,14 +80,7 @@ export default async function handler(
       return res.status(200).json({ data: result.rows });
     }
 
-    // -------------------------
-    // POST: create module shell (admin only)
-    // -------------------------
-    // Invariants enforced:
-    // - Only admins can create modules
-    // - New modules always start in 'draft' status
-    // - Title is required, description is optional
-    // - Modules have no instructors/students at creation (added separately)
+
     if (req.method === "POST") {
       const { title, description } = req.body;
 

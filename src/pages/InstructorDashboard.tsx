@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getInstructorModules } from '@/api/modules';
 import { InstructorModule } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Users, ArrowRight } from 'lucide-react';
 
 export default function InstructorDashboard() {
+  const navigate = useNavigate();
   const [modules, setModules] = useState<InstructorModule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,32 +60,36 @@ export default function InstructorDashboard() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {modules.map(({ module, submissionCounts }) => (
-            <Card key={module.id} className="group transition-shadow hover:shadow-md">
+            <Card 
+              key={module.id} 
+              className="group transition-shadow hover:shadow-md cursor-pointer"
+              onClick={() => navigate(`/instructor/modules/${module.id}`)}
+            >
               <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <FileText className="h-5 w-5 text-foreground" />
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                      <FileText className="h-5 w-5 text-foreground" />
+                    </div>
+                    <CardTitle className="text-lg truncate">{module.title}</CardTitle>
                   </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{module.title}</CardTitle>
-                    <CardDescription className="mt-1 line-clamp-2">
-                      {module.description}
-                    </CardDescription>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">{module.students?.length || 0}</span>
                   </div>
                 </div>
+                <CardDescription className="line-clamp-2 ml-11">
+                  {module.description || 'No description provided'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>{getTotalSubmissions(submissionCounts)} submissions</span>
-                  </div>
-                  {getPendingCount(submissionCounts) > 0 && (
+                {getPendingCount(submissionCounts) > 0 && (
+                  <div className="mb-4">
                     <Badge variant="secondary" className="bg-primary/10">
-                      {getPendingCount(submissionCounts)} pending
+                      {getPendingCount(submissionCounts)} pending review
                     </Badge>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="mb-4 grid grid-cols-4 gap-2 text-center text-xs">
                   <div className="rounded bg-muted p-2">
@@ -105,7 +110,11 @@ export default function InstructorDashboard() {
                   </div>
                 </div>
 
-                <Button asChild variant="outline" className="w-full">
+                <Button 
+                  asChild 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Link to={`/instructor/module/${module.id}/submissions`}>
                     View Submissions
                     <ArrowRight className="ml-2 h-4 w-4" />
