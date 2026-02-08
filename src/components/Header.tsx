@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +33,10 @@ export function Header() {
           <Logo />
         </Link>
 
-        {isAuthenticated && user ? (
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          
+          {isAuthenticated && user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
@@ -54,11 +58,12 @@ export function Header() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <Button asChild variant="default">
-            <Link to="/login">Sign In</Link>
-          </Button>
-        )}
+          ) : (
+            <Button asChild variant="default">
+              <Link to="/login">Sign In</Link>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

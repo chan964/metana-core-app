@@ -1,13 +1,40 @@
-import { Link } from "react-router-dom";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+
+interface LogoProps {
+  className?: string;
+}
 
 export function Logo({ className }: LogoProps) {
+  const { theme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className={`inline-flex items-center ${className || ""}`}>
+        <img
+          src="/metana-logo-light.png"
+          alt="Metana Expert Coding Bootcamps"
+          className="h-8 w-auto object-contain"
+        />
+      </div>
+    );
+  }
+
+  const currentTheme = theme === "system" ? systemTheme : theme;
+  const isDark = currentTheme === "dark";
+
   return (
-    <Link to="/" className={`inline-flex items-center ${className || ""}`}>
+    <div className={`inline-flex items-center ${className || ""}`}>
       <img
-        src="https://metana.io/wp-content/uploads/2022/07/Metana-Logo.png"
+        src={isDark ? "/metana-logo.png" : "/metana-logo-light.png"}
         alt="Metana Expert Coding Bootcamps"
-        className="h-8 w-[160px] object-contain"
+        className="h-8 w-auto object-contain"
       />
-    </Link>
+    </div>
   );
 }
