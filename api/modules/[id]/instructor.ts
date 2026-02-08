@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { pool } from "../../../lib/db";
+import { pool } from "../../../lib/db.ts";
 
 /**
  * POST /api/modules/:id/instructor
