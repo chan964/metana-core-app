@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { parse } from "cookie";
 import { pool } from "../../lib/db.ts";
 
 export default async function handler(
@@ -11,6 +12,27 @@ export default async function handler(
         success: false,
         error: "Method not allowed",
       });
+    }
+
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+
+    const cookies = parse(cookieHeader);
+    const sessionId = cookies.session;
+
+    if (!sessionId) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+
+    const sessionRes = await pool.query(
+      `SELECT 1 FROM sessions WHERE id = $1 AND expires_at > now()`,
+      [sessionId]
+    );
+
+    if (sessionRes.rowCount === 0) {
+      return res.status(401).json({ error: "Unauthenticated" });
     }
 
     const { submissionId } = req.body;

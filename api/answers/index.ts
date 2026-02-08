@@ -1,9 +1,31 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { parse } from "cookie";
 import { pool } from "../../lib/db.ts";
 import { randomUUID } from "crypto";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+
+    const cookies = parse(cookieHeader);
+    const sessionId = cookies.session;
+
+    if (!sessionId) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+
+    const sessionRes = await pool.query(
+      `SELECT 1 FROM sessions WHERE id = $1 AND expires_at > now()`,
+      [sessionId]
+    );
+
+    if (sessionRes.rowCount === 0) {
+      return res.status(401).json({ error: "Unauthenticated" });
+    }
+
     // SAVE ANSWER (draft only)
     if (req.method === "POST") {
       const { submissionId, subQuestionId, answerText } = req.body;
