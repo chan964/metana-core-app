@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import bcrypt from "bcryptjs";
 import { parse } from "cookie";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+import { pool } from "../../lib/db.ts";
 
 async function verifyAdmin(sessionId: string): Promise<boolean> {
   const adminRes = await pool.query(

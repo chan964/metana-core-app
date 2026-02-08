@@ -1,10 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+import { pool } from "../../../lib/db";
 
 /**
  * POST /api/modules/:id/enroll

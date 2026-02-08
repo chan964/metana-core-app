@@ -1,13 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import bcrypt from "bcryptjs";
 import { parse } from "cookie";
-import { Pool } from "pg";
 import { randomUUID } from "crypto";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+import { pool } from "../../lib/db.ts";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
