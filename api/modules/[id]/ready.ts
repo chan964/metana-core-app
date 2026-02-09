@@ -91,7 +91,8 @@ export default async function handler(
     // 6. Check at least one sub_question exists
     const subQuestionRes = await pool.query(
       `SELECT 1 FROM sub_questions sq
-       JOIN questions q ON sq.question_id = q.id
+       JOIN parts p ON sq.part_id = p.id
+       JOIN questions q ON p.question_id = q.id
        WHERE q.module_id = $1 LIMIT 1`,
       [moduleId]
     );
@@ -100,7 +101,42 @@ export default async function handler(
       return res.status(403).json({ error: "Module must have at least one sub-question" });
     }
 
-    // 7. Update ready_for_publish flag
+    // 7. Validate EVERY question has at least one part
+    const questionsWithoutParts = await pool.query(
+      `SELECT q.id, q.title FROM questions q
+       WHERE q.module_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM parts p WHERE p.question_id = q.id
+       )
+       LIMIT 1`,
+      [moduleId]
+    );
+
+    if (questionsWithoutParts.rowCount && questionsWithoutParts.rowCount > 0) {
+      return res.status(403).json({ 
+        error: "All questions must have at least one part"
+      });
+    }
+
+    // 8. Validate EVERY part has at least one sub-question
+    const partsWithoutSubQuestions = await pool.query(
+      `SELECT p.id, p.label, q.title FROM parts p
+       JOIN questions q ON q.id = p.question_id
+       WHERE q.module_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM sub_questions sq WHERE sq.part_id = p.id
+       )
+       LIMIT 1`,
+      [moduleId]
+    );
+
+    if (partsWithoutSubQuestions.rowCount && partsWithoutSubQuestions.rowCount > 0) {
+      return res.status(403).json({ 
+        error: "All parts must have at least one sub-question"
+      });
+    }
+
+    // 9. Update ready_for_publish flag
     const updateRes = await pool.query(
       `UPDATE modules SET ready_for_publish = true WHERE id = $1 RETURNING *`,
       [moduleId]

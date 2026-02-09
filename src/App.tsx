@@ -13,6 +13,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentModuleView from "./pages/StudentModuleView";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import ModuleEditor from "./pages/instructor/ModuleEditor";
+import QuestionEditor from "./pages/instructor/QuestionEditor";
 import InstructorSubmissions from "./pages/InstructorSubmissions";
 import GradingView from "./pages/GradingView";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -87,6 +88,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["instructor"]}>
                     <ModuleEditor />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instructor/modules/:moduleId/questions/new"
+                element={
+                  <ProtectedRoute allowedRoles={["instructor"]}>
+                    <QuestionEditor />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instructor/modules/:moduleId/questions/:questionId"
+                element={
+                  <ProtectedRoute allowedRoles={["instructor"]}>
+                    <QuestionEditor />
                   </ProtectedRoute>
                 }
               />

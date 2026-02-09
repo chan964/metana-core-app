@@ -48,74 +48,70 @@ export default async function handler(
     }
 
     // Validate request body
-    const { question_id, filename, file_type, url, storage_key } = req.body;
+    const { module_id, title, scenario_text, order_index } = req.body;
 
-    if (!question_id || typeof question_id !== "string") {
-      return res.status(400).json({ error: "Validation: field question_id required" });
+    if (!module_id || typeof module_id !== "string") {
+      return res.status(400).json({ error: "Validation: field module_id required" });
     }
 
-    if (!filename || typeof filename !== "string") {
-      return res.status(400).json({ error: "Validation: field filename required" });
+    if (!title || typeof title !== "string") {
+      return res.status(400).json({ error: "Validation: field title required" });
     }
 
-    if (!file_type || typeof file_type !== "string") {
-      return res.status(400).json({ error: "Validation: field file_type required" });
+    if (!scenario_text || typeof scenario_text !== "string") {
+      return res.status(400).json({ error: "Validation: field scenario_text required" });
     }
 
-    if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "Validation: field url required" });
+    if (order_index !== undefined && (typeof order_index !== "number" || !Number.isInteger(order_index))) {
+      return res.status(400).json({ error: "Validation: field order_index invalid" });
     }
 
-    if (!storage_key || typeof storage_key !== "string") {
-      return res.status(400).json({ error: "Validation: field storage_key required" });
-    }
-
-    // Check question exists and get module_id
-    const questionRes = await pool.query(
-      `SELECT module_id FROM questions WHERE id = $1`,
-      [question_id]
-    );
-
-    if (questionRes.rowCount === 0) {
-      return res.status(404).json({ error: "Not found: question" });
-    }
-
-    const moduleId = questionRes.rows[0].module_id;
-
-    // Check module is draft
+    // Check module exists
     const moduleRes = await pool.query(
       `SELECT status FROM modules WHERE id = $1`,
-      [moduleId]
+      [module_id]
     );
 
-    if (moduleRes.rowCount === 0 || moduleRes.rows[0].status !== "draft") {
+    if (moduleRes.rowCount === 0) {
+      return res.status(404).json({ error: "Not found: module" });
+    }
+
+    // Check module is draft
+    if (moduleRes.rows[0].status !== "draft") {
       return res.status(403).json({ error: "Forbidden: Module must be draft to modify content" });
     }
 
     // Check instructor is assigned to module
     const assignmentRes = await pool.query(
       `SELECT 1 FROM module_instructors WHERE module_id = $1 AND instructor_id = $2`,
-      [moduleId, user.id]
+      [module_id, user.id]
     );
 
     if (assignmentRes.rowCount === 0) {
       return res.status(403).json({ error: "Forbidden: instructor not assigned to module" });
     }
 
-    // Insert artefact
-    const artefactId = randomUUID();
+    // Insert question with order_index logic
+    const questionId = randomUUID();
+    const finalOrderIndex = order_index !== undefined 
+      ? order_index 
+      : (await pool.query(
+          `SELECT COALESCE(MAX(order_index), 0) + 1 AS next_index FROM questions WHERE module_id = $1`,
+          [module_id]
+        )).rows[0].next_index;
+
     const insertRes = await pool.query(
       `
-      INSERT INTO artefacts (id, question_id, filename, file_type, url, storage_key)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, question_id, filename, file_type, url, created_at
+      INSERT INTO questions (id, module_id, title, scenario_text, order_index)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, module_id, title, scenario_text, order_index, created_at
       `,
-      [artefactId, question_id, filename, file_type, url, storage_key]
+      [questionId, module_id, title, scenario_text, finalOrderIndex]
     );
 
     return res.status(200).json(insertRes.rows[0]);
   } catch (err) {
-    console.error("Error in /api/artefacts:", err);
+    console.error("Error in /api/questions:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -44,21 +44,12 @@ export function ArtefactList({ artefacts, canManage = false, onDelete }: Artefac
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isExternalLink(artefact.url) ? (
-              <Button variant="ghost" size="sm" asChild>
-                <a href={artefact.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open
-                </a>
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" asChild>
-                <a href={artefact.url} download={artefact.filename}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </a>
-              </Button>
-            )}
+            <Button variant="ghost" size="sm" asChild>
+              <a href={`/api/artefacts/${artefact.id}/download`} target="_blank" rel="noopener noreferrer">
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </a>
+            </Button>
             {canManage && onDelete && (
               <Button
                 variant="ghost"

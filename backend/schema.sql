@@ -11,6 +11,13 @@ CREATE TABLE users (
   created_at TIMESTAMP DEFAULT now()
 );
 
+CREATE TABLE sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT now()
+);
+
 CREATE TABLE modules (
   id UUID PRIMARY KEY,
   title TEXT NOT NULL,
@@ -39,15 +46,24 @@ CREATE TABLE module_students (
 CREATE TABLE questions (
   id UUID PRIMARY KEY,
   module_id UUID REFERENCES modules(id) ON DELETE CASCADE,
-  question_text TEXT NOT NULL,
+  title TEXT NOT NULL,
+  scenario_text TEXT NOT NULL,
   order_index INT NOT NULL,
   created_at TIMESTAMP DEFAULT now()
 );
 
-CREATE TABLE sub_questions (
+CREATE TABLE parts (
   id UUID PRIMARY KEY,
   question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-  prompt_text TEXT NOT NULL,
+  label TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (question_id, label)
+);
+
+CREATE TABLE sub_questions (
+  id UUID PRIMARY KEY,
+  part_id UUID REFERENCES parts(id) ON DELETE CASCADE,
+  prompt TEXT NOT NULL,
   max_marks INT NOT NULL CHECK (max_marks > 0),
   order_index INT NOT NULL,
   created_at TIMESTAMP DEFAULT now()
@@ -84,8 +100,9 @@ CREATE TABLE artefacts (
   filename TEXT NOT NULL,
   file_type TEXT,
   url TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
   uploaded_by UUID REFERENCES users(id),
-  uploaded_at TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now()
 );
 
 

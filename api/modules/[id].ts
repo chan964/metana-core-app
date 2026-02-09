@@ -15,10 +15,6 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  if (req.method !== "DELETE") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
     const { id } = req.query;
     const moduleId = Array.isArray(id) ? id[0] : id;
@@ -41,6 +37,135 @@ export default async function handler(
     }
 
     const user = userRes.rows[0];
+
+    if (req.method === "GET") {
+      const moduleRes = await pool.query(
+        `
+        SELECT id, title, description, status, created_at
+        FROM modules
+        WHERE id = $1
+        `,
+        [moduleId]
+      );
+
+      if (moduleRes.rowCount === 0) {
+        return res.status(404).json({ error: "Module not found" });
+      }
+
+      const module = moduleRes.rows[0];
+
+      // Role-based access control
+      if (user.role === "student") {
+        // Students can only access published modules
+        if (module.status !== "published") {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+      } else if (user.role !== "instructor" && user.role !== "admin") {
+        // Unknown roles are forbidden
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      // Instructors and admins can access all modules (draft + published)
+
+      const questionsRes = await pool.query(
+        `
+        SELECT id, module_id, title, scenario_text, order_index
+        FROM questions
+        WHERE module_id = $1
+        ORDER BY order_index
+        `,
+        [moduleId]
+      );
+
+      const subQuestionsRes = await pool.query(
+        `
+        SELECT
+          sq.id,
+          sq.prompt,
+          sq.max_marks,
+          sq.order_index,
+          p.id AS part_id,
+          p.label AS part_label,
+          p.question_id
+        FROM sub_questions sq
+        JOIN parts p ON p.id = sq.part_id
+        JOIN questions q ON q.id = p.question_id
+        WHERE q.module_id = $1
+        ORDER BY p.label, sq.order_index
+        `,
+        [moduleId]
+      );
+
+      const artefactsRes = await pool.query(
+        `
+        SELECT id, question_id, filename, file_type, url, created_at
+        FROM artefacts
+        WHERE question_id IN (
+          SELECT id FROM questions WHERE module_id = $1
+        )
+        ORDER BY created_at
+        `,
+        [moduleId]
+      );
+
+      const partA: Array<{
+        id: string;
+        questionId: string;
+        label: string;
+        text: string;
+        maxScore: number;
+      }> = [];
+
+      const partB: Array<{
+        id: string;
+        questionId: string;
+        label: string;
+        text: string;
+        maxScore: number;
+      }> = [];
+
+      for (const row of subQuestionsRes.rows) {
+        const partLabel = String(row.part_label || "").toUpperCase();
+        const isPartB = partLabel === "B";
+        const target = isPartB ? partB : partA;
+        const labelPrefix = isPartB ? "B" : "A";
+
+        target.push({
+          id: row.id,
+          questionId: row.question_id,
+          label: `${labelPrefix}${target.length + 1}`,
+          text: row.prompt,
+          maxScore: Number(row.max_marks)
+        });
+      }
+
+      const legacyModule = {
+        id: moduleRes.rows[0].id,
+        title: moduleRes.rows[0].title,
+        description: moduleRes.rows[0].description,
+        scenario: questionsRes.rows[0]?.scenario_text || "",
+        questions: questionsRes.rows.map((q: any) => ({
+          id: q.id,
+          moduleId: q.module_id,
+          text: q.title,
+          order: q.order_index
+        })),
+        partA,
+        partB,
+        artefacts: artefactsRes.rows.map((a: any) => ({
+          id: a.id,
+          filename: a.filename,
+          fileType: a.file_type,
+          url: a.url,
+          moduleId,
+          questionId: a.question_id,
+          createdAt: a.created_at
+        })),
+        instructorId: null,
+        createdAt: moduleRes.rows[0].created_at
+      };
+
+      return res.status(200).json({ data: legacyModule });
+    }
 
     // 2. Check role = admin
     if (user.role !== "admin") {

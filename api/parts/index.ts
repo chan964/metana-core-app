@@ -48,26 +48,14 @@ export default async function handler(
     }
 
     // Validate request body
-    const { question_id, filename, file_type, url, storage_key } = req.body;
+    const { question_id, label } = req.body;
 
     if (!question_id || typeof question_id !== "string") {
       return res.status(400).json({ error: "Validation: field question_id required" });
     }
 
-    if (!filename || typeof filename !== "string") {
-      return res.status(400).json({ error: "Validation: field filename required" });
-    }
-
-    if (!file_type || typeof file_type !== "string") {
-      return res.status(400).json({ error: "Validation: field file_type required" });
-    }
-
-    if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "Validation: field url required" });
-    }
-
-    if (!storage_key || typeof storage_key !== "string") {
-      return res.status(400).json({ error: "Validation: field storage_key required" });
+    if (!label || (label !== "A" && label !== "B")) {
+      return res.status(400).json({ error: "Validation: field label invalid" });
     }
 
     // Check question exists and get module_id
@@ -102,20 +90,22 @@ export default async function handler(
       return res.status(403).json({ error: "Forbidden: instructor not assigned to module" });
     }
 
-    // Insert artefact
-    const artefactId = randomUUID();
+    // Insert part
+    const partId = randomUUID();
     const insertRes = await pool.query(
       `
-      INSERT INTO artefacts (id, question_id, filename, file_type, url, storage_key)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, question_id, filename, file_type, url, created_at
+      INSERT INTO parts (id, question_id, label)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (question_id, label)
+      DO UPDATE SET label = EXCLUDED.label
+      RETURNING id, question_id, label
       `,
-      [artefactId, question_id, filename, file_type, url, storage_key]
+      [partId, question_id, label]
     );
 
     return res.status(200).json(insertRes.rows[0]);
   } catch (err) {
-    console.error("Error in /api/artefacts:", err);
+    console.error("Error in /api/parts:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
