@@ -71,7 +71,7 @@ export default async function handler(
     // 5. Update module status to archived
     const updateRes = await pool.query(
       `UPDATE modules 
-       SET status = 'archived'
+       SET status = 'archived'::module_status
        WHERE id = $1 
        RETURNING *`,
       [moduleId]

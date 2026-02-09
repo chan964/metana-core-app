@@ -87,7 +87,7 @@ export default async function handler(
     // 7. Update module status to published
     const updateRes = await pool.query(
       `UPDATE modules 
-       SET status = 'published', published_at = NOW() 
+       SET status = 'published'::module_status, published_at = NOW() 
        WHERE id = $1 
        RETURNING *`,
       [moduleId]

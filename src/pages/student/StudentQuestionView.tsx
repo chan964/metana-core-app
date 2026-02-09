@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -44,7 +45,8 @@ export default function StudentQuestionView() {
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [submissionStatus, setSubmissionStatus] = useState<'draft' | 'submitted' | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState<'draft' | 'submitted' | 'finalised' | 'graded' | null>(null);
+  const [isManuallySaving, setIsManuallySaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -140,8 +142,8 @@ export default function StudentQuestionView() {
   };
 
   const handleAnswerChange = (subQuestionId: string, value: string) => {
-    // Don't allow changes if submitted
-    if (submissionStatus === 'submitted') {
+    // Don't allow changes if read-only
+    if (isReadOnly) {
       return;
     }
 
@@ -159,7 +161,25 @@ export default function StudentQuestionView() {
     }, 800);
   };
 
-  const isReadOnly = submissionStatus === 'submitted';
+  const handleManualSave = async () => {
+    if (isReadOnly) return;
+    
+    setIsManuallySaving(true);
+    try {
+      // Save all current answers
+      const savePromises = Object.entries(answers).map(([subQuestionId, answer]) =>
+        saveAnswer(subQuestionId, answer)
+      );
+      await Promise.all(savePromises);
+      toast.success('All answers saved successfully');
+    } catch (error) {
+      toast.error('Failed to save answers');
+    } finally {
+      setIsManuallySaving(false);
+    }
+  };
+
+  const isReadOnly = submissionStatus !== null && submissionStatus !== 'draft';
 
   if (isLoading) {
     return (
@@ -235,18 +255,16 @@ export default function StudentQuestionView() {
 
       {/* Scenario */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 text-[#d9f56b]">Scenario</h2>
-        <div className="rounded-lg border bg-card p-6">
-          <p className="whitespace-pre-wrap text-foreground leading-relaxed">
-            {question.scenario_text}
-          </p>
-        </div>
+        <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Scenario</h2>
+        <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
+          {question.scenario_text}
+        </p>
       </div>
 
       {/* Artefacts */}
       {question.artefacts.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#d9f56b]">Artefacts</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Artefacts</h2>
           <div className="rounded-lg border bg-card p-4">
             <div className="space-y-2">
               {question.artefacts.map((artefact) => (
@@ -280,7 +298,7 @@ export default function StudentQuestionView() {
       {/* Part A */}
       {partA && partA.sub_questions.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#d9f56b]">Part A</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Part A</h2>
           <div className="space-y-6">
             {partA.sub_questions
               .sort((a, b) => a.order_index - b.order_index)
@@ -289,10 +307,10 @@ export default function StudentQuestionView() {
                   {index > 0 && <Separator className="my-6" />}
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-4">
-                      <label className="text-base font-medium leading-relaxed">
+                      <label className="text-sm font-medium leading-relaxed text-foreground/80">
                         {subQuestion.prompt}
                       </label>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
                         {subQuestion.max_marks} marks
                       </span>
                     </div>
@@ -301,7 +319,7 @@ export default function StudentQuestionView() {
                       onChange={(e) => handleAnswerChange(subQuestion.id, e.target.value)}
                       placeholder={isReadOnly ? '' : 'Enter your answer here...'}
                       disabled={isReadOnly}
-                      className="min-h-[150px] resize-none"
+                      className="min-h-[150px] resize-none bg-white dark:bg-white text-black border-border focus:border-[#d9f56b] transition-colors"
                     />
                   </div>
                 </div>
@@ -313,7 +331,7 @@ export default function StudentQuestionView() {
       {/* Part B */}
       {partB && partB.sub_questions.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#d9f56b]">Part B</h2>
+          <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Part B</h2>
           <div className="space-y-6">
             {partB.sub_questions
               .sort((a, b) => a.order_index - b.order_index)
@@ -322,10 +340,10 @@ export default function StudentQuestionView() {
                   {index > 0 && <Separator className="my-6" />}
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-4">
-                      <label className="text-base font-medium leading-relaxed">
+                      <label className="text-sm font-medium leading-relaxed text-foreground/80">
                         {subQuestion.prompt}
                       </label>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
                         {subQuestion.max_marks} marks
                       </span>
                     </div>
@@ -334,12 +352,26 @@ export default function StudentQuestionView() {
                       onChange={(e) => handleAnswerChange(subQuestion.id, e.target.value)}
                       placeholder={isReadOnly ? '' : 'Enter your answer here...'}
                       disabled={isReadOnly}
-                      className="min-h-[150px] resize-none"
+                      className="min-h-[150px] resize-none bg-white dark:bg-white text-black border-border focus:border-[#d9f56b] transition-colors"
                     />
                   </div>
                 </div>
               ))}
           </div>
+        </div>
+      )}
+
+      {/* Save Button */}
+      {!isReadOnly && (
+        <div className="mt-8 flex justify-center">
+          <Button
+            onClick={handleManualSave}
+            disabled={isManuallySaving}
+            className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90 px-8"
+            size="lg"
+          >
+            {isManuallySaving ? 'Saving...' : 'Save Answers'}
+          </Button>
         </div>
       )}
     </div>

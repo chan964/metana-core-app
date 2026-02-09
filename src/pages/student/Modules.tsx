@@ -13,9 +13,13 @@ interface StudentModuleItem {
   created_at: string;
 }
 
+interface ModuleWithProgress extends StudentModuleItem {
+  progress: number;
+}
+
 export default function StudentModules() {
   const navigate = useNavigate();
-  const [modules, setModules] = useState<StudentModuleItem[]>([]);
+  const [modules, setModules] = useState<ModuleWithProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,8 +33,28 @@ export default function StudentModules() {
           throw new Error('Failed to fetch modules');
         }
 
-        const data = await response.json();
-        setModules(data);
+        const data: StudentModuleItem[] = await response.json();
+
+        // Fetch progress for each module
+        const modulesWithProgress = await Promise.all(
+          data.map(async (module) => {
+            try {
+              const progressResponse = await fetch(`/api/student/modules/${module.id}/progress`, {
+                credentials: 'include',
+              });
+              
+              if (progressResponse.ok) {
+                const progressData = await progressResponse.json();
+                return { ...module, progress: progressData.percentage };
+              }
+              return { ...module, progress: 0 };
+            } catch {
+              return { ...module, progress: 0 };
+            }
+          })
+        );
+
+        setModules(modulesWithProgress);
       } catch (error) {
         console.error('Failed to fetch modules:', error);
         toast('Failed to load modules');
@@ -92,12 +116,12 @@ export default function StudentModules() {
                 <div className="mb-4 rounded-lg bg-muted p-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">0%</span>
+                    <span className="font-medium">{module.progress}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-background overflow-hidden">
                     <div 
                       className="h-full bg-[#d9f56b] transition-all"
-                      style={{ width: '0%' }}
+                      style={{ width: `${module.progress}%` }}
                     />
                   </div>
                 </div>

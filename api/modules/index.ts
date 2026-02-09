@@ -40,6 +40,7 @@ export default async function handler(
           m.title,
           m.description,
           m.status,
+          m.ready_for_publish,
           m.created_at,
           m.submission_start,
           m.submission_end,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   getAllModules,
   deleteModule,
@@ -210,8 +210,8 @@ export function ModuleManagement() {
 
             <TableBody>
               {modules.map((module) => (
-                <>
-                  <TableRow key={module.id} className="hover:bg-muted/50">
+                <React.Fragment key={module.id}>
+                  <TableRow className="hover:bg-muted/50">
                     <TableCell>
                       <Button
                         size="icon"
@@ -387,55 +387,28 @@ export function ModuleManagement() {
                       </DialogContent>
                     </Dialog>
 
-                    {/* READY FOR PUBLISH (Instructor Only, Draft Only) */}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      disabled={module.status !== 'draft' || module.ready_for_publish}
-                      title={
-                        module.status !== 'draft'
-                          ? 'Only available for draft modules'
-                          : module.ready_for_publish
-                          ? 'Already marked as ready'
-                          : 'Mark module as ready for publishing'
-                      }
-                      onClick={async () => {
-                        try {
-                          const response = await markModuleReady(module.id);
-                          if (response.data) {
-                            setModules(modules.map((m) =>
-                              m.id === module.id ? response.data : m
-                            ));
-                            toast.success('Module marked as ready for publishing');
-                          }
-                        } catch (error: any) {
-                          toast.error(error.message || 'Failed to mark module as ready');
-                          console.error('Failed to mark module as ready:', error);
-                        }
-                      }}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-
                     {/* PUBLISH (Admin Only, Draft Only, Ready Required) */}
                     <Button
                       size="icon"
                       variant="ghost"
                       disabled={module.status !== 'draft' || !module.ready_for_publish}
+                      className={
+                        module.status === 'draft' && module.ready_for_publish
+                          ? 'animate-pulse-subtle'
+                          : ''
+                      }
                       title={
                         module.status !== 'draft'
                           ? 'Only available for draft modules'
                           : !module.ready_for_publish
-                          ? 'Module must be marked as ready first'
-                          : 'Publish module'
+                          ? 'Waiting for instructor to mark as ready'
+                          : 'Publish module - ready for students'
                       }
                       onClick={async () => {
                         try {
                           const response = await publishModule(module.id);
                           if (response.data) {
-                            setModules(modules.map((m) =>
-                              m.id === module.id ? response.data : m
-                            ));
+                            await fetchData();
                             toast.success('Module published successfully');
                           }
                         } catch (error: any) {
@@ -444,7 +417,13 @@ export function ModuleManagement() {
                         }
                       }}
                     >
-                      <BookOpen className="h-4 w-4" />
+                      <BookOpen 
+                        className={`h-4 w-4 ${
+                          module.status === 'draft' && module.ready_for_publish
+                            ? 'text-[#d9f56b]'
+                            : ''
+                        }`}
+                      />
                     </Button>
 
                     {/* ARCHIVE (Admin Only, Published Only) */}
@@ -461,9 +440,7 @@ export function ModuleManagement() {
                         try {
                           const response = await archiveModule(module.id);
                           if (response.data) {
-                            setModules(modules.map((m) =>
-                              m.id === module.id ? response.data : m
-                            ));
+                            await fetchData();
                             toast.success('Module archived successfully');
                           }
                         } catch (error: any) {
@@ -552,7 +529,7 @@ export function ModuleManagement() {
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </React.Fragment>
             ))}
             </TableBody>
           </Table>

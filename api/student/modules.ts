@@ -54,7 +54,7 @@ export default async function handler(
       FROM modules m
       INNER JOIN module_students ms ON ms.module_id = m.id
       WHERE ms.student_id = $1
-        AND m.status = 'published'
+        AND m.status = 'published'::module_status
       ORDER BY m.created_at DESC
       `,
       [user.id]

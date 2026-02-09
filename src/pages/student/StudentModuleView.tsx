@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, FileText, ArrowRight, AlertCircle, Send } from 'lucide-react';
+import { ArrowLeft, FileText, ArrowRight, AlertCircle, Send, Check } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 interface Question {
@@ -40,6 +40,7 @@ export default function StudentModuleView() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<'draft' | 'submitted' | 'finalised' | 'graded' | null>(null);
 
   useEffect(() => {
     async function fetchModule() {
@@ -62,6 +63,16 @@ export default function StudentModuleView() {
 
         const data = await response.json();
         setModule(data);
+
+        // Fetch submission status
+        const statusResponse = await fetch(`/api/submissions/status?moduleId=${moduleId}`, {
+          credentials: 'include',
+        });
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          setSubmissionStatus(statusData.status);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load module';
         setError(message);
@@ -193,36 +204,46 @@ export default function StudentModuleView() {
 
           {/* Submit Module Button */}
           <div className="mt-8 flex justify-end">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
-                  disabled={isSubmitting}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Complete Module
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Submit Module</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to submit this module? You will not be able to make any
-                    further changes after submission. Please ensure all questions are answered.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleSubmitModule}
-                    disabled={isSubmitting}
+            {submissionStatus !== null && submissionStatus !== 'draft' ? (
+              <Button
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+                disabled
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Completed
+              </Button>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
                     className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                    disabled={isSubmitting}
                   >
-                    {isSubmitting ? 'Submitting...' : 'Submit'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    <Send className="mr-2 h-4 w-4" />
+                    Complete Module
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Submit Module</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to submit this module? You will not be able to make any
+                      further changes after submission. Please ensure all questions are answered.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleSubmitModule}
+                      disabled={isSubmitting}
+                      className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       )}
