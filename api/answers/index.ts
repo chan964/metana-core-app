@@ -82,6 +82,11 @@ export default async function handler(
         [moduleId, user.id]
       );
 
+      const submissionStatus =
+        submissionRes.rowCount && submissionRes.rows[0]
+          ? (submissionRes.rows[0].status as string)
+          : "draft";
+
       if (submissionRes.rowCount === 0) {
         // Create draft submission only if no submission exists
         submissionId = randomUUID();
@@ -94,22 +99,55 @@ export default async function handler(
         submissionId = submissionRes.rows[0].id;
       }
 
-      // Fetch answers for this submission and question
+      const allowGrades =
+        submissionStatus === "submitted" || submissionStatus === "finalised";
+
+      if (!allowGrades) {
+        // Draft: return answers only; do NOT return grades
+        const answersRes = await pool.query(
+          `
+          SELECT sa.id, sa.sub_question_id, sa.answer_text
+          FROM submission_answers sa
+          JOIN sub_questions sq ON sq.id = sa.sub_question_id
+          JOIN parts p ON p.id = sq.part_id
+          JOIN questions q ON q.id = p.question_id
+          WHERE sa.submission_id = $1
+            AND q.id = $2
+          `,
+          [submissionId, questionId]
+        );
+        return res.status(200).json({
+          answers: answersRes.rows,
+        });
+      }
+
+      // Submitted or finalised: include read-only grade per answer (join submission_answers → grades)
       const answersRes = await pool.query(
         `
-        SELECT sa.id, sa.sub_question_id, sa.answer_text
+        SELECT sa.id, sa.sub_question_id, sa.answer_text, g.score AS marks_awarded, g.feedback
         FROM submission_answers sa
         JOIN sub_questions sq ON sq.id = sa.sub_question_id
         JOIN parts p ON p.id = sq.part_id
         JOIN questions q ON q.id = p.question_id
+        LEFT JOIN grades g ON g.submission_answer_id = sa.id
         WHERE sa.submission_id = $1
           AND q.id = $2
         `,
         [submissionId, questionId]
       );
 
+      const answers = answersRes.rows.map((row: Record<string, unknown>) => ({
+        id: row.id,
+        sub_question_id: row.sub_question_id,
+        answer_text: row.answer_text,
+        grade: {
+          marks_awarded: row.marks_awarded ?? null,
+          feedback: row.feedback ?? null,
+        },
+      }));
+
       return res.status(200).json({
-        answers: answersRes.rows
+        answers,
       });
     }
 

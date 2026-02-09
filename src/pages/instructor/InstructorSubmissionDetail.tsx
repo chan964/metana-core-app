@@ -3,7 +3,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 
 interface InstructorSubmissionSummary {
   submission_id: string;
@@ -61,45 +73,70 @@ export default function InstructorSubmissionDetail() {
   const [gradeStatus, setGradeStatus] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFinalising, setIsFinalising] = useState(false);
   const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
-  useEffect(() => {
-    async function fetchSubmission() {
-      if (!moduleId || !submissionId) return;
-      try {
-        const [detailRes, listRes] = await Promise.all([
-          fetch(`/api/instructor/modules/${moduleId}/submissions/${submissionId}`, {
-            credentials: 'include',
-          }),
-          fetch(`/api/instructor/modules/${moduleId}/submissions`, {
-            credentials: 'include',
-          }),
-        ]);
+  const fetchSubmission = async () => {
+    if (!moduleId || !submissionId) return;
+    try {
+      const [detailRes, listRes] = await Promise.all([
+        fetch(`/api/instructor/modules/${moduleId}/submissions/${submissionId}`, {
+          credentials: 'include',
+        }),
+        fetch(`/api/instructor/modules/${moduleId}/submissions`, {
+          credentials: 'include',
+        }),
+      ]);
 
-        if (!detailRes.ok) {
-          const err = await detailRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to load submission');
-        }
-
-        if (!listRes.ok) {
-          const err = await listRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to load submissions list');
-        }
-
-        const detailData: InstructorSubmissionDetailResponse = await detailRes.json();
-        const listData: InstructorSubmissionSummary[] = await listRes.json();
-
-        setSubmission(detailData);
-        setSubmissions(listData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load submission');
-      } finally {
-        setIsLoading(false);
+      if (!detailRes.ok) {
+        const err = await detailRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to load submission');
       }
-    }
 
+      if (!listRes.ok) {
+        const err = await listRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to load submissions list');
+      }
+
+      const detailData: InstructorSubmissionDetailResponse = await detailRes.json();
+      const listData: InstructorSubmissionSummary[] = await listRes.json();
+
+      setSubmission(detailData);
+      setSubmissions(listData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load submission');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
     fetchSubmission();
   }, [moduleId, submissionId]);
+
+  const handleFinaliseGrades = async () => {
+    if (!submission?.submission_id) return;
+    setIsFinalising(true);
+    try {
+      const res = await fetch('/api/grades/finalise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ submission_id: submission.submission_id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to finalise grades');
+      }
+      toast.success('Grades finalised');
+      await fetchSubmission();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to finalise grades');
+    } finally {
+      setIsFinalising(false);
+    }
+  };
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '-';
@@ -112,10 +149,10 @@ export default function InstructorSubmissionDetail() {
     });
   };
 
-  const isLocked = (submissionStatus: 'submitted' | 'finalised', gradeExists: boolean) =>
-    submissionStatus === 'finalised' && gradeExists;
+  const gradesReadOnly = submission?.status === 'finalised';
 
   const scheduleSave = (subQuestionId: string) => {
+    if (gradesReadOnly) return;
     if (saveTimeoutsRef.current[subQuestionId]) {
       clearTimeout(saveTimeoutsRef.current[subQuestionId]);
     }
@@ -125,6 +162,7 @@ export default function InstructorSubmissionDetail() {
   };
 
   const saveGrade = async (subQuestionId: string) => {
+    if (gradesReadOnly) return;
     const entry = gradeInputs[subQuestionId];
     if (!entry || !entry.submission_answer_id) return;
     if (entry.score === '') return;
@@ -252,13 +290,48 @@ export default function InstructorSubmissionDetail() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Status</div>
-                  <div className="text-base font-medium capitalize">{submission.status}</div>
+                  <div className="text-base font-medium capitalize">
+                    {submission.status === 'finalised' ? 'Finalised' : submission.status}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Submitted</div>
                   <div className="text-base font-medium">{formatDate(submission.submitted_at)}</div>
                 </div>
               </div>
+              {submission.status === 'submitted' && (
+                <div className="mt-4">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                        disabled={isFinalising}
+                      >
+                        {isFinalising ? 'Finalising...' : 'Finalize Grades'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Finalize grades</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Grades cannot be changed after finalisation. This action is irreversible.
+                          Are you sure you want to finalise grades for this submission?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isFinalising}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleFinaliseGrades}
+                          disabled={isFinalising}
+                          className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                        >
+                          {isFinalising ? 'Finalising...' : 'Finalize'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -354,10 +427,7 @@ export default function InstructorSubmissionDetail() {
                                   disabled={
                                     !gradeInputs[sq.id]?.submission_answer_id ||
                                     gradeStatus[sq.id] === 'saving' ||
-                                    isLocked(
-                                      submission.status,
-                                      sq.grade.marks_awarded !== null || sq.grade.feedback !== null
-                                    )
+                                    gradesReadOnly
                                   }
                                   className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
                                 />
@@ -387,10 +457,7 @@ export default function InstructorSubmissionDetail() {
                                   disabled={
                                     !gradeInputs[sq.id]?.submission_answer_id ||
                                     gradeStatus[sq.id] === 'saving' ||
-                                    isLocked(
-                                      submission.status,
-                                      sq.grade.marks_awarded !== null || sq.grade.feedback !== null
-                                    )
+                                    gradesReadOnly
                                   }
                                   className="min-h-[90px] w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
                                 />

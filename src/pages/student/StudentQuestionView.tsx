@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,11 +38,11 @@ interface QuestionDetail {
 
 export default function StudentQuestionView() {
   const { moduleId, questionId } = useParams<{ moduleId: string; questionId: string }>();
-  const navigate = useNavigate();
   const [question, setQuestion] = useState<QuestionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [grades, setGrades] = useState<Record<string, { marks_awarded: number | null; feedback: string | null }>>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [submissionStatus, setSubmissionStatus] = useState<'draft' | 'submitted' | 'finalised' | 'graded' | null>(null);
   const [isManuallySaving, setIsManuallySaving] = useState(false);
@@ -54,25 +53,19 @@ export default function StudentQuestionView() {
       if (!moduleId || !questionId) return;
 
       try {
-        // Fetch question details
         const questionResponse = await fetch(`/api/student/modules/${moduleId}/questions/${questionId}`, {
           credentials: 'include',
         });
 
         if (!questionResponse.ok) {
-          if (questionResponse.status === 403) {
-            throw new Error('You do not have access to this question');
-          }
-          if (questionResponse.status === 404) {
-            throw new Error('Question not found');
-          }
+          if (questionResponse.status === 403) throw new Error('You do not have access to this question');
+          if (questionResponse.status === 404) throw new Error('Question not found');
           throw new Error('Failed to load question');
         }
 
         const questionData = await questionResponse.json();
         setQuestion(questionData);
 
-        // Fetch submission status and answers
         const answersResponse = await fetch(`/api/answers?questionId=${questionId}`, {
           credentials: 'include',
         });
@@ -80,13 +73,21 @@ export default function StudentQuestionView() {
         if (answersResponse.ok) {
           const answersData = await answersResponse.json();
           const answerMap: Record<string, string> = {};
-          answersData.answers.forEach((answer: { sub_question_id: string; answer_text: string }) => {
+          const gradesMap: Record<string, { marks_awarded: number | null; feedback: string | null }> = {};
+          (answersData.answers || []).forEach((answer: {
+            sub_question_id: string;
+            answer_text: string;
+            grade?: { marks_awarded: number | null; feedback: string | null };
+          }) => {
             answerMap[answer.sub_question_id] = answer.answer_text;
+            if (answer.grade !== undefined) {
+              gradesMap[answer.sub_question_id] = answer.grade;
+            }
           });
           setAnswers(answerMap);
+          setGrades(gradesMap);
         }
 
-        // Fetch submission status
         const submissionResponse = await fetch(`/api/submissions/status?moduleId=${moduleId}`, {
           credentials: 'include',
         });
@@ -107,72 +108,47 @@ export default function StudentQuestionView() {
     fetchData();
   }, [moduleId, questionId]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
 
   const saveAnswer = async (subQuestionId: string, answerText: string) => {
+    if (isReadOnly) return;
     try {
       setSaveStatus('saving');
       const response = await fetch('/api/answers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          sub_question_id: subQuestionId,
-          answer_text: answerText,
-        }),
+        body: JSON.stringify({ sub_question_id: subQuestionId, answer_text: answerText }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save answer');
-      }
-
+      if (!response.ok) throw new Error('Failed to save answer');
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err) {
+    } catch {
       toast('Failed to save answer');
       setSaveStatus('idle');
     }
   };
 
   const handleAnswerChange = (subQuestionId: string, value: string) => {
-    // Don't allow changes if read-only
-    if (isReadOnly) {
-      return;
-    }
-
-    // Update local state immediately
+    if (isReadOnly) return;
     setAnswers(prev => ({ ...prev, [subQuestionId]: value }));
-
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Set new timeout for autosave
-    saveTimeoutRef.current = setTimeout(() => {
-      saveAnswer(subQuestionId, value);
-    }, 800);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => saveAnswer(subQuestionId, value), 800);
   };
 
   const handleManualSave = async () => {
     if (isReadOnly) return;
-    
     setIsManuallySaving(true);
     try {
-      // Save all current answers
-      const savePromises = Object.entries(answers).map(([subQuestionId, answer]) =>
-        saveAnswer(subQuestionId, answer)
+      await Promise.all(
+        Object.entries(answers).map(([subQuestionId, answer]) => saveAnswer(subQuestionId, answer))
       );
-      await Promise.all(savePromises);
       toast.success('All answers saved successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save answers');
     } finally {
       setIsManuallySaving(false);
@@ -180,6 +156,9 @@ export default function StudentQuestionView() {
   };
 
   const isReadOnly = submissionStatus !== null && submissionStatus !== 'draft';
+  const showGrades = submissionStatus === 'finalised';
+
+  // 6A-3 Read-only enforcement: when submitted/finalised — no autosave, no POST, answers/grades display-only; page stable on refresh (data refetched on mount).
 
   if (isLoading) {
     return (
@@ -212,12 +191,13 @@ export default function StudentQuestionView() {
     );
   }
 
-  const partA = question.parts.find(p => p.label === 'A');
-  const partB = question.parts.find(p => p.label === 'B');
+  const parts = (question.parts || []).map((p: Part) => ({
+    ...p,
+    sub_questions: (p.sub_questions || []).filter(Boolean).sort((a: SubQuestion, b: SubQuestion) => a.order_index - b.order_index),
+  }));
 
   return (
     <div className="container py-8 max-w-4xl">
-      {/* Header */}
       <div className="mb-8">
         <Link
           to={`/student/modules/${moduleId}`}
@@ -226,7 +206,6 @@ export default function StudentQuestionView() {
           <ArrowLeft className="h-4 w-4" />
           Back to Module
         </Link>
-
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">{question.title}</h1>
           {isReadOnly ? (
@@ -236,38 +215,24 @@ export default function StudentQuestionView() {
             </div>
           ) : saveStatus !== 'idle' && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {saveStatus === 'saving' && (
-                <>
-                  <div className="h-2 w-2 rounded-full bg-muted-foreground animate-pulse" />
-                  Saving...
-                </>
-              )}
-              {saveStatus === 'saved' && (
-                <>
-                  <Check className="h-4 w-4 text-green-500" />
-                  Saved
-                </>
-              )}
+              {saveStatus === 'saving' && <> <div className="h-2 w-2 rounded-full bg-muted-foreground animate-pulse" /> Saving... </>}
+              {saveStatus === 'saved' && <> <Check className="h-4 w-4 text-green-500" /> Saved </>}
             </div>
           )}
         </div>
       </div>
 
-      {/* Scenario */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Scenario</h2>
-        <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
-          {question.scenario_text}
-        </p>
+        <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{question.scenario_text}</p>
       </div>
 
-      {/* Artefacts */}
-      {question.artefacts.length > 0 && (
+      {question.artefacts && question.artefacts.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Artefacts</h2>
           <div className="rounded-lg border bg-card p-4">
             <div className="space-y-2">
-              {question.artefacts.map((artefact) => (
+              {question.artefacts.map((artefact: Artefact) => (
                 <div
                   key={artefact.id}
                   className="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
@@ -295,14 +260,12 @@ export default function StudentQuestionView() {
         </div>
       )}
 
-      {/* Part A */}
-      {partA && partA.sub_questions.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Part A</h2>
-          <div className="space-y-6">
-            {partA.sub_questions
-              .sort((a, b) => a.order_index - b.order_index)
-              .map((subQuestion, index) => (
+      {parts.map((part: Part) => (
+        part.sub_questions.length > 0 && (
+          <div key={part.id} className="mb-8">
+            <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Part {part.label}</h2>
+            <div className="space-y-6">
+              {part.sub_questions.map((subQuestion: SubQuestion, index: number) => (
                 <div key={subQuestion.id}>
                   {index > 0 && <Separator className="my-6" />}
                   <div className="space-y-3">
@@ -321,47 +284,26 @@ export default function StudentQuestionView() {
                       disabled={isReadOnly}
                       className="min-h-[150px] resize-none bg-white dark:bg-white text-black border-border focus:border-[#d9f56b] transition-colors"
                     />
+                    {showGrades && (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground/80">
+                          {grades[subQuestion.id]?.marks_awarded != null
+                            ? `${grades[subQuestion.id].marks_awarded} / ${subQuestion.max_marks} marks`
+                            : 'Awaiting grading'}
+                        </span>
+                        {grades[subQuestion.id]?.feedback && (
+                          <p className="mt-1 text-muted-foreground">{grades[subQuestion.id].feedback}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      ))}
 
-      {/* Part B */}
-      {partB && partB.sub_questions.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 text-foreground uppercase tracking-wide">Part B</h2>
-          <div className="space-y-6">
-            {partB.sub_questions
-              .sort((a, b) => a.order_index - b.order_index)
-              .map((subQuestion, index) => (
-                <div key={subQuestion.id}>
-                  {index > 0 && <Separator className="my-6" />}
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <label className="text-sm font-medium leading-relaxed text-foreground/80">
-                        {subQuestion.prompt}
-                      </label>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-                        {subQuestion.max_marks} marks
-                      </span>
-                    </div>
-                    <Textarea
-                      value={answers[subQuestion.id] || ''}
-                      onChange={(e) => handleAnswerChange(subQuestion.id, e.target.value)}
-                      placeholder={isReadOnly ? '' : 'Enter your answer here...'}
-                      disabled={isReadOnly}
-                      className="min-h-[150px] resize-none bg-white dark:bg-white text-black border-border focus:border-[#d9f56b] transition-colors"
-                    />
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Save Button */}
       {!isReadOnly && (
         <div className="mt-8 flex justify-center">
           <Button
