@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentModules from "./pages/student/Modules";
 import StudentModuleView from "./pages/StudentModuleView";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import ModuleEditor from "./pages/instructor/ModuleEditor";
@@ -62,7 +63,23 @@ const App = () => (
                 path="/student"
                 element={
                   <ProtectedRoute allowedRoles={["student"]}>
-                    <StudentDashboard />
+                    <StudentModules />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/modules"
+                element={
+                  <ProtectedRoute allowedRoles={["student"]}>
+                    <StudentModules />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/modules/:moduleId"
+                element={
+                  <ProtectedRoute allowedRoles={["student"]}>
+                    <StudentModuleView />
                   </ProtectedRoute>
                 }
               />
