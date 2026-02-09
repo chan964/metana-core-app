@@ -11,7 +11,8 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentModules from "./pages/student/Modules";
-import StudentModuleView from "./pages/StudentModuleView";
+import StudentModuleView from "./pages/student/StudentModuleView";
+import StudentModuleViewLegacy from "./pages/StudentModuleView";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import ModuleEditor from "./pages/instructor/ModuleEditor";
 import QuestionEditor from "./pages/instructor/QuestionEditor";
@@ -87,7 +88,7 @@ const App = () => (
                 path="/student/module/:moduleId"
                 element={
                   <ProtectedRoute allowedRoles={["student"]}>
-                    <StudentModuleView />
+                    <StudentModuleViewLegacy />
                   </ProtectedRoute>
                 }
               />
