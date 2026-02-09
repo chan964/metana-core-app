@@ -18,6 +18,8 @@ import InstructorDashboard from "./pages/InstructorDashboard";
 import ModuleEditor from "./pages/instructor/ModuleEditor";
 import QuestionEditor from "./pages/instructor/QuestionEditor";
 import InstructorSubmissions from "./pages/InstructorSubmissions";
+import InstructorModuleSubmissions from "./pages/instructor/InstructorModuleSubmissions";
+import InstructorSubmissionDetail from "./pages/instructor/InstructorSubmissionDetail";
 import GradingView from "./pages/GradingView";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
@@ -139,6 +141,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["instructor"]}>
                     <InstructorSubmissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instructor/modules/:moduleId/submissions"
+                element={
+                  <ProtectedRoute allowedRoles={["instructor"]}>
+                    <InstructorModuleSubmissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instructor/modules/:moduleId/submissions/:submissionId"
+                element={
+                  <ProtectedRoute allowedRoles={["instructor"]}>
+                    <InstructorSubmissionDetail />
                   </ProtectedRoute>
                 }
               />

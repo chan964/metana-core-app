@@ -47,11 +47,26 @@ export default async function handler(
     }
 
     const { id: moduleId } = req.query;
+    const moduleIdStr = Array.isArray(moduleId) ? moduleId[0] : moduleId;
+
+    if (!moduleIdStr || typeof moduleIdStr !== "string") {
+      return res.status(400).json({ error: "Validation: field moduleId required" });
+    }
+
+    // Check module exists
+    const moduleRes = await pool.query(
+      `SELECT 1 FROM modules WHERE id = $1`,
+      [moduleIdStr]
+    );
+
+    if (moduleRes.rowCount === 0) {
+      return res.status(404).json({ error: "Module not found" });
+    }
 
     // Check instructor is assigned to module
     const assignmentRes = await pool.query(
       `SELECT 1 FROM module_instructors WHERE module_id = $1 AND instructor_id = $2`,
-      [moduleId, user.id]
+      [moduleIdStr, user.id]
     );
 
     if (assignmentRes.rowCount === 0) {
@@ -61,37 +76,21 @@ export default async function handler(
     const submissionsRes = await pool.query(
       `
       SELECT
-        sub.id,
-        sub.module_id,
+        sub.id AS submission_id,
         sub.student_id,
+        u.full_name AS student_name,
         sub.status,
-        sub.submitted_at,
-        sub.created_at,
-        COALESCE(u.full_name, u.email) AS student_name
+        sub.submitted_at
       FROM submissions sub
       JOIN users u ON u.id = sub.student_id
       WHERE sub.module_id = $1
-      ORDER BY sub.created_at DESC
+        AND sub.status IN ('submitted', 'finalised')
+      ORDER BY sub.submitted_at DESC
       `,
-      [moduleId]
+      [moduleIdStr]
     );
 
-    const data = submissionsRes.rows.map((row) => ({
-      id: row.id,
-      moduleId: row.module_id,
-      studentId: row.student_id,
-      studentName: row.student_name,
-      state: row.status,
-      answers: [],
-      grades: [],
-      totalScore: undefined,
-      submittedAt: row.submitted_at,
-      gradedAt: undefined,
-      finalisedAt: undefined,
-      createdAt: row.created_at
-    }));
-
-    return res.status(200).json({ data });
+    return res.status(200).json(submissionsRes.rows);
   } catch (err) {
     console.error("Error in /api/instructor/modules/[id]/submissions:", err);
     return res.status(500).json({ error: "Internal server error" });

@@ -303,6 +303,13 @@ export default function ModuleEditor() {
               <Plus className="mr-2 h-4 w-4" />
               Add Question
             </Button>
+            <Button
+              variant="outline"
+              className="border-[#d9f56b]/60 text-foreground hover:bg-[#d9f56b]/10"
+              onClick={() => navigate(`/instructor/modules/${moduleId}/submissions`)}
+            >
+              View Submissions
+            </Button>
           </div>
         </div>
       </div>
