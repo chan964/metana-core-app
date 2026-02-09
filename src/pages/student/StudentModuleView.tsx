@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, FileText, ArrowRight, AlertCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, FileText, ArrowRight, AlertCircle, Send } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 interface Question {
@@ -27,6 +39,7 @@ export default function StudentModuleView() {
   const [module, setModule] = useState<StudentModuleDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchModule() {
@@ -60,6 +73,33 @@ export default function StudentModuleView() {
 
     fetchModule();
   }, [moduleId]);
+
+  const handleSubmitModule = async () => {
+    if (!moduleId) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/submissions/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ moduleId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to submit module');
+      }
+
+      toast('Module submitted successfully!');
+      navigate('/student/modules');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit module';
+      toast(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -150,6 +190,40 @@ export default function StudentModuleView() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Submit Module Button */}
+          <div className="mt-8 flex justify-end">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                  disabled={isSubmitting}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Complete Module
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Submit Module</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to submit this module? You will not be able to make any
+                    further changes after submission. Please ensure all questions are answered.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleSubmitModule}
+                    disabled={isSubmitting}
+                    className="bg-[#d9f56b] text-black hover:bg-[#d9f56b]/90"
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       )}
     </div>
