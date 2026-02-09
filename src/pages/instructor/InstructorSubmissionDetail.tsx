@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,12 @@ interface SubmissionQuestion {
       prompt: string;
       max_marks: number;
       order_index: number;
+      submission_answer_id: string | null;
       answer_text: string;
+      grade: {
+        marks_awarded: number | null;
+        feedback: string | null;
+      };
     }>;
   }>;
   artefacts: Array<{
@@ -52,8 +57,11 @@ export default function InstructorSubmissionDetail() {
   const navigate = useNavigate();
   const [submission, setSubmission] = useState<InstructorSubmissionDetailResponse | null>(null);
   const [submissions, setSubmissions] = useState<InstructorSubmissionSummary[]>([]);
+  const [gradeInputs, setGradeInputs] = useState<Record<string, { score: string; feedback: string; submission_answer_id: string | null; max_marks: number }>>({});
+  const [gradeStatus, setGradeStatus] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     async function fetchSubmission() {
@@ -103,6 +111,70 @@ export default function InstructorSubmissionDetail() {
       minute: '2-digit',
     });
   };
+
+  const isLocked = (submissionStatus: 'submitted' | 'finalised', gradeExists: boolean) =>
+    submissionStatus === 'finalised' && gradeExists;
+
+  const scheduleSave = (subQuestionId: string) => {
+    if (saveTimeoutsRef.current[subQuestionId]) {
+      clearTimeout(saveTimeoutsRef.current[subQuestionId]);
+    }
+    saveTimeoutsRef.current[subQuestionId] = setTimeout(() => {
+      void saveGrade(subQuestionId);
+    }, 800);
+  };
+
+  const saveGrade = async (subQuestionId: string) => {
+    const entry = gradeInputs[subQuestionId];
+    if (!entry || !entry.submission_answer_id) return;
+    if (entry.score === '') return;
+
+    const scoreValue = Number(entry.score);
+    if (Number.isNaN(scoreValue)) return;
+
+    setGradeStatus((prev) => ({ ...prev, [subQuestionId]: 'saving' }));
+    try {
+      const response = await fetch('/api/grades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          submission_answer_id: entry.submission_answer_id,
+          score: scoreValue,
+          feedback: entry.feedback || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save grade');
+      }
+
+      setGradeStatus((prev) => ({ ...prev, [subQuestionId]: 'saved' }));
+      setTimeout(() => {
+        setGradeStatus((prev) => ({ ...prev, [subQuestionId]: 'idle' }));
+      }, 1500);
+    } catch {
+      setGradeStatus((prev) => ({ ...prev, [subQuestionId]: 'idle' }));
+    }
+  };
+
+  useEffect(() => {
+    if (!submission) return;
+    const nextInputs: Record<string, { score: string; feedback: string; submission_answer_id: string | null; max_marks: number }> = {};
+    submission.questions.forEach((q) => {
+      q.parts.forEach((p) => {
+        p.sub_questions.forEach((sq) => {
+          nextInputs[sq.id] = {
+            score: sq.grade.marks_awarded !== null ? String(sq.grade.marks_awarded) : '',
+            feedback: sq.grade.feedback ?? '',
+            submission_answer_id: sq.submission_answer_id ?? null,
+            max_marks: sq.max_marks,
+          };
+        });
+      });
+    });
+    setGradeInputs(nextInputs);
+  }, [submission]);
 
   const orderedSubmissions = useMemo(() => submissions, [submissions]);
   const currentIndex = orderedSubmissions.findIndex((s) => s.submission_id === submissionId);
@@ -255,6 +327,81 @@ export default function InstructorSubmissionDetail() {
                             </div>
                             <div className="rounded-md border bg-muted/20 p-4 text-sm text-foreground whitespace-pre-wrap">
                               {sq.answer_text || '-'}
+                            </div>
+                            <div className="grid gap-3 pt-2 md:grid-cols-2">
+                              <div className="space-y-2">
+                                <div className="text-sm text-muted-foreground">Marks</div>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={sq.max_marks}
+                                  value={gradeInputs[sq.id]?.score ?? ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setGradeInputs((prev) => ({
+                                      ...prev,
+                                      [sq.id]: {
+                                        ...(prev[sq.id] || {
+                                          submission_answer_id: sq.submission_answer_id ?? null,
+                                          feedback: '',
+                                          max_marks: sq.max_marks,
+                                        }),
+                                        score: value,
+                                      },
+                                    }));
+                                    scheduleSave(sq.id);
+                                  }}
+                                  disabled={
+                                    !gradeInputs[sq.id]?.submission_answer_id ||
+                                    gradeStatus[sq.id] === 'saving' ||
+                                    isLocked(
+                                      submission.status,
+                                      sq.grade.marks_awarded !== null || sq.grade.feedback !== null
+                                    )
+                                  }
+                                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                />
+                                <div className="text-xs text-muted-foreground">
+                                  Max {sq.max_marks}
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="text-sm text-muted-foreground">Feedback</div>
+                                <textarea
+                                  value={gradeInputs[sq.id]?.feedback ?? ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setGradeInputs((prev) => ({
+                                      ...prev,
+                                      [sq.id]: {
+                                        ...(prev[sq.id] || {
+                                          submission_answer_id: sq.submission_answer_id ?? null,
+                                          score: '',
+                                          max_marks: sq.max_marks,
+                                        }),
+                                        feedback: value,
+                                      },
+                                    }));
+                                    scheduleSave(sq.id);
+                                  }}
+                                  disabled={
+                                    !gradeInputs[sq.id]?.submission_answer_id ||
+                                    gradeStatus[sq.id] === 'saving' ||
+                                    isLocked(
+                                      submission.status,
+                                      sq.grade.marks_awarded !== null || sq.grade.feedback !== null
+                                    )
+                                  }
+                                  className="min-h-[90px] w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                />
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {gradeStatus[sq.id] === 'saving'
+                                ? 'Saving...'
+                                : gradeStatus[sq.id] === 'saved'
+                                ? 'Saved'
+                                : ''}
                             </div>
                           </div>
                         ))}
