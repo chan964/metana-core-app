@@ -122,7 +122,7 @@ export default async function handler(
     const endpoint = process.env.R2_ENDPOINT;
 
     if (!accessKeyId || !secretAccessKey || !bucketName || !endpoint) {
-      return res.status(500).json({ error: "Internal server error" });
+      return res.status(503).json({ error: "Storage not configured" });
     }
 
     const url = new URL(endpoint);

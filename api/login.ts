@@ -44,10 +44,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [sessionId, user.id, expires]
     );
 
-    console.log("[/api/login] Session created:", sessionId);
-
-    // Set cookie with proper options for development
-    // Allow credentials for cross-origin requests (important for Vercel dev)
     const cookieValue = serialize("session", sessionId, {
       httpOnly: true,
       path: "/",
@@ -55,17 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
     });
-    
-    console.log("[/api/login] Setting cookie:", {
-      value: cookieValue.substring(0, 80),
-      sessionId,
-      NODE_ENV: process.env.NODE_ENV,
-    });
-    
-    // Add Access-Control headers to allow credentials
+
     res.setHeader("Set-Cookie", cookieValue);
     res.setHeader("Access-Control-Allow-Credentials", "true");
 
+    console.log("[/api/login] Login successful");
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("[/api/login] Error:", error);
