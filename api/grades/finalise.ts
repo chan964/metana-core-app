@@ -72,7 +72,7 @@ export default async function handler(
     }
 
     await pool.query(
-      `UPDATE submissions SET status = $1, finalised_at = now() WHERE id = $2`,
+      `UPDATE submissions SET status = $1 WHERE id = $2`,
       ["finalised", submission_id]
     );
 

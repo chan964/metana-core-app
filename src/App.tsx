@@ -95,6 +95,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* DEPRECATED: Use /student/modules/:moduleId instead. Kept for backwards compatibility. */}
               <Route
                 path="/student/module/:moduleId"
                 element={
@@ -136,6 +137,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* DEPRECATED: Use /instructor/modules/:moduleId/submissions instead. Kept for backwards compatibility. */}
               <Route
                 path="/instructor/module/:moduleId/submissions"
                 element={
@@ -160,6 +162,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* DEPRECATED: Use /instructor/modules/:moduleId/submissions/:submissionId instead. Kept for backwards compatibility. */}
               <Route
                 path="/instructor/submission/:submissionId"
                 element={

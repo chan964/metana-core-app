@@ -80,7 +80,7 @@ export default async function handler(
         ) AS students,
         COUNT(DISTINCT sub.id) FILTER (WHERE sub.status = 'draft') AS draft_count,
         COUNT(DISTINCT sub.id) FILTER (WHERE sub.status = 'submitted') AS submitted_count,
-        COUNT(DISTINCT sub.id) FILTER (WHERE sub.status = 'graded') AS graded_count,
+        0 AS graded_count,
         COUNT(DISTINCT sub.id) FILTER (WHERE sub.status = 'finalised') AS finalised_count
       FROM modules m
       INNER JOIN module_instructors mi

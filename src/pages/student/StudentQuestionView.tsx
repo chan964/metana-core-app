@@ -86,6 +86,10 @@ export default function StudentQuestionView() {
           });
           setAnswers(answerMap);
           setGrades(gradesMap);
+        } else {
+          const errBody = await answersResponse.json().catch(() => ({}));
+          const detail = (errBody as { detail?: string }).detail;
+          throw new Error(detail || `Failed to load answers (${answersResponse.status})`);
         }
 
         const submissionResponse = await fetch(`/api/submissions/status?moduleId=${moduleId}`, {
@@ -206,8 +210,8 @@ export default function StudentQuestionView() {
           <ArrowLeft className="h-4 w-4" />
           Back to Module
         </Link>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold">{question.title}</h1>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold break-words sm:text-3xl">{question.title}</h1>
           {isReadOnly ? (
             <div className="flex items-center gap-2 text-sm font-medium text-green-500">
               <Check className="h-4 w-4" />
@@ -284,15 +288,22 @@ export default function StudentQuestionView() {
                       disabled={isReadOnly}
                       className="min-h-[150px] resize-none bg-white dark:bg-white text-black border-border focus:border-[#d9f56b] transition-colors"
                     />
+                    {isReadOnly && !showGrades && (
+                      <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          Submitted. Waiting for instructor grading.
+                        </p>
+                      </div>
+                    )}
                     {showGrades && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
+                      <div className="mt-2 p-3 rounded-md bg-[#d9f56b]/30 border border-[#d9f56b]/40">
+                        <span className="font-semibold text-foreground">
                           {grades[subQuestion.id]?.marks_awarded != null
                             ? `${grades[subQuestion.id].marks_awarded} / ${subQuestion.max_marks} marks`
                             : 'Awaiting grading'}
                         </span>
                         {grades[subQuestion.id]?.feedback && (
-                          <p className="mt-1 text-muted-foreground">{grades[subQuestion.id].feedback}</p>
+                          <p className="mt-2 text-foreground/90 font-medium">{grades[subQuestion.id].feedback}</p>
                         )}
                       </div>
                     )}

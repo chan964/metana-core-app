@@ -1,5 +1,5 @@
 CREATE TYPE role AS ENUM ('admin', 'instructor', 'student');
-CREATE TYPE submission_status AS ENUM ('draft', 'submitted', 'graded', 'finalised');
+CREATE TYPE submission_status AS ENUM ('draft', 'submitted', 'finalised');
 CREATE TYPE module_status AS ENUM ('draft', 'published', 'archived');
 
 CREATE TABLE users (
@@ -19,13 +19,15 @@ CREATE TABLE sessions (
 );
 
 CREATE TABLE modules (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
   status module_status NOT NULL DEFAULT 'draft',
   ready_for_publish BOOLEAN DEFAULT false,
   published_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now(),
+  submission_start TIMESTAMP,
+  submission_end TIMESTAMP
 );
 
 CREATE TABLE module_instructors (
@@ -82,7 +84,7 @@ CREATE TABLE submissions (
   UNIQUE (module_id, student_id)
 );
 
-CREATE TABLE submission_answers (
+CREATE TABLE answers (
   id UUID PRIMARY KEY,
   submission_id UUID REFERENCES submissions(id) ON DELETE CASCADE,
   sub_question_id UUID REFERENCES sub_questions(id) ON DELETE CASCADE,
@@ -108,11 +110,11 @@ CREATE TABLE artefacts (
 
 CREATE TABLE grades (
   id UUID PRIMARY KEY,
-  submission_answer_id UUID REFERENCES submission_answers(id) ON DELETE CASCADE,
+  answer_id UUID REFERENCES answers(id) ON DELETE CASCADE,
   instructor_id UUID REFERENCES users(id),
-  score INT NOT NULL CHECK (score >= 0),
+  marks_awarded INT NOT NULL CHECK (marks_awarded >= 0),
   feedback TEXT,
   graded_at TIMESTAMP DEFAULT now(),
-  UNIQUE (submission_answer_id)
+  UNIQUE (answer_id)
 );
 

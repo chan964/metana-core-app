@@ -88,6 +88,7 @@ export default async function handler(
     }
 
     const artefact = artefactRes.rows[0];
+    // artefact.status is module.status (from JOIN)
     const moduleId = artefact.module_id;
 
     if (user.role === "instructor") {

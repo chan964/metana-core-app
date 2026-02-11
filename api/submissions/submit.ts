@@ -103,7 +103,7 @@ export default async function handler(
       FROM sub_questions sq
       JOIN parts p ON p.id = sq.part_id
       JOIN questions q ON q.id = p.question_id
-      LEFT JOIN submission_answers sa ON sa.sub_question_id = sq.id AND sa.submission_id = $1
+      LEFT JOIN answers sa ON sa.sub_question_id = sq.id AND sa.submission_id = $1
       WHERE q.module_id = $2
       `,
       [submission.id, moduleId]

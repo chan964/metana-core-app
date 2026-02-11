@@ -64,7 +64,17 @@ export default async function handler(
         // Unknown roles are forbidden
         return res.status(403).json({ error: "Forbidden" });
       }
-      // Instructors and admins can access all modules (draft + published)
+
+      // Instructors can access only modules they are assigned to
+      if (user.role === "instructor") {
+        const assignmentRes = await pool.query(
+          `SELECT 1 FROM module_instructors WHERE module_id = $1 AND instructor_id = $2`,
+          [moduleId, user.id]
+        );
+        if (assignmentRes.rowCount === 0) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+      }
 
       const questionsRes = await pool.query(
         `

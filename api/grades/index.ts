@@ -45,6 +45,7 @@ export default async function handler(
       return res.status(403).json({ error: "Forbidden" });
     }
 
+    // API contract uses submission_answer_id / score; DB uses answer_id / marks_awarded (mapped below).
     const { submission_answer_id, score, feedback } = req.body;
 
     if (!submission_answer_id || typeof submission_answer_id !== "string") {
@@ -73,7 +74,7 @@ export default async function handler(
         s.student_id,
         s.status,
         sq.max_marks
-      FROM submission_answers sa
+      FROM answers sa
       JOIN submissions s ON s.id = sa.submission_id
       JOIN sub_questions sq ON sq.id = sa.sub_question_id
       WHERE sa.id = $1
@@ -82,13 +83,13 @@ export default async function handler(
     );
 
     if (submissionAnswerRes.rowCount === 0) {
-      return res.status(404).json({ error: "Submission not found" });
+      return res.status(404).json({ error: "Answer not found" });
     }
 
     const submissionAnswer = submissionAnswerRes.rows[0];
 
     if (submissionAnswer.status !== "submitted" && submissionAnswer.status !== "finalised") {
-      return res.status(404).json({ error: "Submission not found" });
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     if (submissionAnswer.status === "finalised") {
@@ -116,35 +117,41 @@ export default async function handler(
     );
 
     if (enrollmentRes.rowCount === 0) {
-      return res.status(404).json({ error: "Submission not found" });
+      return res.status(403).json({ error: "Forbidden" });
     }
 
+    // DB columns: answer_id, marks_awarded (API sends submission_answer_id, score).
     const gradeRes = await pool.query(
       `
       INSERT INTO grades (
         id,
-        submission_answer_id,
-        instructor_id,
-        score,
+        answer_id,
+        marks_awarded,
         feedback
       )
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (submission_answer_id)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (answer_id)
       DO UPDATE SET
-        score = EXCLUDED.score,
+        marks_awarded = EXCLUDED.marks_awarded,
         feedback = EXCLUDED.feedback
-      RETURNING id, submission_answer_id, instructor_id, score, feedback, graded_at
+      RETURNING id, answer_id, marks_awarded, feedback
       `,
       [
         randomUUID(),
         submission_answer_id,
-        user.id,
         score,
         feedback ?? null
       ]
     );
 
-    return res.status(200).json(gradeRes.rows[0]);
+    const row = gradeRes.rows[0];
+    // Map DB names back to API shape: answer_id -> submission_answer_id, marks_awarded -> score.
+    return res.status(200).json({
+      id: row?.id,
+      submission_answer_id: row?.answer_id,
+      score: row?.marks_awarded,
+      feedback: row?.feedback,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });

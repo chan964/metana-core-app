@@ -78,7 +78,7 @@ export default async function handler(
       // Students need to see their answers even after submission (read-only)
       let submissionId: string;
       const submissionRes = await pool.query(
-        `SELECT id, status FROM submissions WHERE module_id = $1 AND student_id = $2`,
+        `SELECT id, status FROM submissions WHERE module_id = $1 AND student_id = $2 ORDER BY COALESCE(submitted_at, created_at) DESC LIMIT 1`,
         [moduleId, user.id]
       );
 
@@ -89,25 +89,38 @@ export default async function handler(
 
       if (submissionRes.rowCount === 0) {
         // Create draft submission only if no submission exists
+        // Use ON CONFLICT to handle race conditions when multiple requests arrive simultaneously
         submissionId = randomUUID();
-        await pool.query(
+        const insertRes = await pool.query(
           `INSERT INTO submissions (id, module_id, student_id, status, created_at)
-           VALUES ($1, $2, $3, 'draft', now())`,
+           VALUES ($1, $2, $3, 'draft', now())
+           ON CONFLICT (module_id, student_id) DO NOTHING
+           RETURNING id`,
           [submissionId, moduleId, user.id]
         );
+        
+        // If INSERT was skipped due to conflict, fetch the existing submission
+        if (insertRes.rowCount === 0) {
+          const existingRes = await pool.query(
+            `SELECT id, status FROM submissions WHERE module_id = $1 AND student_id = $2`,
+            [moduleId, user.id]
+          );
+          submissionId = existingRes.rows[0].id;
+        }
       } else {
         submissionId = submissionRes.rows[0].id;
       }
 
       const allowGrades =
-        submissionStatus === "submitted" || submissionStatus === "finalised";
+        submissionStatus === "submitted" ||
+        submissionStatus === "finalised";
 
       if (!allowGrades) {
         // Draft: return answers only; do NOT return grades
         const answersRes = await pool.query(
           `
           SELECT sa.id, sa.sub_question_id, sa.answer_text
-          FROM submission_answers sa
+          FROM answers sa
           JOIN sub_questions sq ON sq.id = sa.sub_question_id
           JOIN parts p ON p.id = sq.part_id
           JOIN questions q ON q.id = p.question_id
@@ -121,15 +134,15 @@ export default async function handler(
         });
       }
 
-      // Submitted or finalised: include read-only grade per answer (join submission_answers → grades)
+      // Submitted or finalised: include read-only grade per answer (join answers → grades)
       const answersRes = await pool.query(
         `
-        SELECT sa.id, sa.sub_question_id, sa.answer_text, g.score AS marks_awarded, g.feedback
-        FROM submission_answers sa
+        SELECT sa.id, sa.sub_question_id, sa.answer_text, g.marks_awarded, g.feedback
+        FROM answers sa
         JOIN sub_questions sq ON sq.id = sa.sub_question_id
         JOIN parts p ON p.id = sq.part_id
         JOIN questions q ON q.id = p.question_id
-        LEFT JOIN grades g ON g.submission_answer_id = sa.id
+        LEFT JOIN grades g ON g.answer_id = sa.id
         WHERE sa.submission_id = $1
           AND q.id = $2
         `,
@@ -219,10 +232,10 @@ export default async function handler(
       
       await pool.query(
         `
-        INSERT INTO submission_answers (id, submission_id, sub_question_id, answer_text, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, now(), now())
+        INSERT INTO answers (id, submission_id, sub_question_id, answer_text)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (submission_id, sub_question_id)
-        DO UPDATE SET answer_text = EXCLUDED.answer_text, updated_at = now()
+        DO UPDATE SET answer_text = EXCLUDED.answer_text
         `,
         [answerId, submissionId, sub_question_id, answer_text]
       );
@@ -232,7 +245,13 @@ export default async function handler(
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
     console.error("Error in /api/answers:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    const isDev = process.env.NODE_ENV !== "production";
+    return res.status(500).json({
+      error: "Internal server error",
+      ...(isDev && { detail: message, stack }),
+    });
   }
 }

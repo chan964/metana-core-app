@@ -31,24 +31,24 @@ export function ModuleCard({ studentModule }: ModuleCardProps) {
   return (
     <Card className="group transition-shadow hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
               <FileText className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
-              <CardTitle className="text-lg">{module.title}</CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="text-lg truncate">{module.title}</CardTitle>
               <CardDescription className="mt-1 line-clamp-2">
                 {module.description}
               </CardDescription>
             </div>
           </div>
-          <StatusBadge state={state} />
+          <StatusBadge state={state} className="shrink-0" />
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="text-sm text-muted-foreground truncate min-w-0">
             {module.partA.length + module.partB.length} questions
           </div>
           <Button asChild variant={state === 'draft' ? 'default' : 'outline'} size="sm">

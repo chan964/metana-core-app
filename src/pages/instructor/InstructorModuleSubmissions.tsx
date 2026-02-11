@@ -75,8 +75,8 @@ export default function InstructorModuleSubmissions() {
             Back to Module
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Submissions</h1>
-        <p className="mt-2 text-muted-foreground">Review student submissions for this module</p>
+        <h1 className="text-2xl font-bold sm:text-3xl">Submissions</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">Review student submissions for this module</p>
       </div>
 
       <Card>
@@ -94,8 +94,9 @@ export default function InstructorModuleSubmissions() {
               No submissions yet.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <Table>
+                <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Status</TableHead>
@@ -121,7 +122,8 @@ export default function InstructorModuleSubmissions() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

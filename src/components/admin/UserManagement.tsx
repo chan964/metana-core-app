@@ -241,8 +241,9 @@ export function UserManagement() {
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <Table>
+                <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
@@ -364,7 +365,8 @@ export function UserManagement() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </>
         )}
       </CardContent>

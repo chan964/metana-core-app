@@ -102,7 +102,7 @@ export default function StudentModuleView() {
         throw new Error(errorData.error || 'Failed to submit module');
       }
 
-      toast('Module submitted successfully!');
+      toast.success('Module submitted successfully!');
       navigate('/student/modules');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit module';

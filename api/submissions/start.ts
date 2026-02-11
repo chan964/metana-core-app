@@ -21,7 +21,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const sessionRes = await pool.query(
-    `SELECT 1 FROM sessions WHERE id = $1 AND expires_at > now()`,
+    `SELECT u.id, u.role FROM sessions s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.id = $1 AND s.expires_at > now()`,
     [sessionId]
   );
 
@@ -29,10 +31,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Unauthenticated" });
   }
 
+  const user = sessionRes.rows[0];
+
   const { moduleId, studentId } = req.body;
 
   if (!moduleId || !studentId) {
     return res.status(400).json({ success: false, error: "Missing fields" });
+  }
+
+  const isAdmin = user.role === "admin";
+  const isOwnStudent = user.role === "student" && studentId === user.id;
+  if (!isAdmin && !isOwnStudent) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  if (user.role === "student") {
+    const enrollmentRes = await pool.query(
+      `SELECT 1 FROM module_students WHERE module_id = $1 AND student_id = $2`,
+      [moduleId, user.id]
+    );
+    if (enrollmentRes.rowCount === 0) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+  }
+
+  const existingRes = await pool.query(
+    `
+    SELECT *
+    FROM submissions
+    WHERE module_id = $1 AND student_id = $2
+    `,
+    [moduleId, studentId]
+  );
+
+  if (existingRes.rowCount > 0) {
+    return res.status(200).json({ success: true, data: existingRes.rows[0] });
   }
 
   const result = await pool.query(

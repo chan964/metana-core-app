@@ -28,20 +28,20 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link to={isAuthenticated ? getDashboardPath() : '/'} className="flex items-center gap-2">
+      <div className="container flex h-16 items-center justify-between gap-2">
+        <Link to={isAuthenticated ? getDashboardPath() : '/'} className="flex shrink-0 items-center gap-2 min-w-0">
           <Logo />
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 min-w-0">
           <ThemeToggle />
           
           {isAuthenticated && user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <UserIcon className="h-4 w-4" />
-                <span>{user.full_name ?? user.email}</span>
+              <Button variant="ghost" className="gap-2 max-w-full min-w-0">
+                <UserIcon className="h-4 w-4 shrink-0" />
+                <span className="truncate max-w-[8rem] sm:max-w-[12rem] md:max-w-none">{user.full_name ?? user.email}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

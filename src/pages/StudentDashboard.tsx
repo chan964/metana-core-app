@@ -28,7 +28,7 @@ export default function StudentDashboard() {
   return (
     <div className="container py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">My Modules</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">My Modules</h1>
         <p className="mt-2 text-muted-foreground">
           View and complete your assigned assessment modules
         </p>

@@ -81,7 +81,7 @@ export default async function handler(
       // 6. Count answered sub-questions (non-empty answers)
       const answeredRes = await pool.query(
         `SELECT COUNT(sa.id) as answered
-         FROM submission_answers sa
+         FROM answers sa
          JOIN sub_questions sq ON sq.id = sa.sub_question_id
          JOIN parts p ON p.id = sq.part_id
          JOIN questions q ON q.id = p.question_id

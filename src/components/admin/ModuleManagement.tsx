@@ -196,8 +196,9 @@ export function ModuleManagement() {
             No modules found.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <Table>
+              <TableHeader>
               <TableRow>
                 <TableHead className="w-8"></TableHead>
                 <TableHead>Title</TableHead>
@@ -532,7 +533,8 @@ export function ModuleManagement() {
               </React.Fragment>
             ))}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

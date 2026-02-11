@@ -1,57 +1,24 @@
+/**
+ * @deprecated This module is deprecated. It assumed Bearer token auth; the backend uses cookie-based sessions only.
+ * Use the app's auth flow instead: GET /api/me with credentials: 'include', POST /api/logout with credentials: 'include'.
+ * Do not use these functions; they will throw.
+ */
+
 import { User, ApiResponse } from '@/types';
 
-const API_BASE = '/api';
+const DEPRECATED_MSG =
+  'src/api/auth.ts is deprecated. Backend auth is cookie-based. Use fetch with credentials: "include" to /api/me and /api/logout.';
 
 /**
- * Get current user from Neon DB via Clerk session
- * This replaces the old login flow
+ * @deprecated Backend uses cookie-based auth, not Bearer token. Use fetch("/api/me", { credentials: "include" }) instead.
  */
-export async function getCurrentUser(token: string): Promise<ApiResponse<User>> {
-  const response = await fetch(`${API_BASE}/me`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch user');
-  }
-  
-  return response.json();
+export async function getCurrentUser(_token: string): Promise<ApiResponse<User>> {
+  throw new Error(DEPRECATED_MSG);
 }
 
 /**
- * Logout is handled by Clerk directly
- * No backend API needed
+ * @deprecated Use fetch("/api/logout", { method: "POST", credentials: "include" }) or the logout from useAuth instead.
  */
 export async function logout(): Promise<void> {
-  // Clerk handles logout via signOut()
-  return Promise.resolve();
+  throw new Error(DEPRECATED_MSG);
 }
-
-
-
-// import { User, ApiResponse } from '@/types';
-
-// const API_BASE = '/api';
-
-// export async function login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
-//   const response = await fetch(`${API_BASE}/auth/login`, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ email, password }),
-//   });
-//   return response.json();
-// }
-
-// export async function logout(): Promise<ApiResponse<void>> {
-//   const response = await fetch(`${API_BASE}/auth/logout`, {
-//     method: 'POST',
-//   });
-//   return response.json();
-// }
-
-// export async function getCurrentUser(): Promise<ApiResponse<User>> {
-//   const response = await fetch(`${API_BASE}/auth/me`);
-//   return response.json();
-// }

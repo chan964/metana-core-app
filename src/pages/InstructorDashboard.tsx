@@ -41,7 +41,7 @@ export default function InstructorDashboard() {
   return (
     <div className="container py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Instructor Dashboard</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Instructor Dashboard</h1>
         <p className="mt-2 text-muted-foreground">
           Manage and grade student submissions for your assigned modules
         </p>
@@ -91,7 +91,7 @@ export default function InstructorDashboard() {
                   </div>
                 )}
 
-                <div className="mb-4 grid grid-cols-4 gap-2 text-center text-xs">
+                <div className="mb-4 grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
                   <div className="rounded bg-muted p-2">
                     <div className="font-medium">{submissionCounts.draft}</div>
                     <div className="text-muted-foreground">Draft</div>

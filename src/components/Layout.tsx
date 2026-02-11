@@ -5,7 +5,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main>
+      <main className="min-w-0 overflow-x-hidden">
         <Outlet />
       </main>
     </div>

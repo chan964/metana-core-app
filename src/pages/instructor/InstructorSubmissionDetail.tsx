@@ -172,6 +172,7 @@ export default function InstructorSubmissionDetail() {
 
     setGradeStatus((prev) => ({ ...prev, [subQuestionId]: 'saving' }));
     try {
+      // API expects submission_answer_id / score; backend maps to DB answer_id / marks_awarded.
       const response = await fetch('/api/grades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,14 +235,14 @@ export default function InstructorSubmissionDetail() {
   return (
     <div className="container py-8">
       <div className="mb-6">
-        <div className="flex items-center justify-between gap-4">
-          <Button variant="ghost" asChild className="-ml-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Button variant="ghost" asChild className="-ml-4 self-start">
             <Link to={`/instructor/modules/${moduleId}/submissions`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Submissions
             </Link>
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               disabled={!prevSubmission}
@@ -266,8 +267,8 @@ export default function InstructorSubmissionDetail() {
             </Button>
           </div>
         </div>
-        <h1 className="mt-4 text-3xl font-bold">Submission Review</h1>
-        <p className="mt-2 text-muted-foreground">Read-only view of student submission</p>
+        <h1 className="mt-4 text-2xl font-bold sm:text-3xl">Submission Review</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">Read-only view of student submission</p>
       </div>
 
       {error ? (
@@ -342,7 +343,7 @@ export default function InstructorSubmissionDetail() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <h2 className="text-lg font-semibold mb-3 text-[#d9f56b] uppercase tracking-wide">
+                  <h2 className="text-lg font-semibold mb-3 text-black dark:text-white uppercase tracking-wide">
                     Scenario
                   </h2>
                   <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
@@ -352,7 +353,7 @@ export default function InstructorSubmissionDetail() {
 
                 {question.artefacts.length > 0 && (
                   <div>
-                    <h2 className="text-lg font-semibold mb-3 text-[#d9f56b] uppercase tracking-wide">
+                    <h2 className="text-lg font-semibold mb-3 text-black dark:text-white uppercase tracking-wide">
                       Artefacts
                     </h2>
                     <div className="space-y-2">
@@ -383,7 +384,7 @@ export default function InstructorSubmissionDetail() {
 
                   return (
                     <div key={label} className="space-y-4">
-                      <h2 className="text-lg font-semibold text-[#d9f56b] uppercase tracking-wide">
+                      <h2 className="text-lg font-semibold text-black dark:text-white uppercase tracking-wide">
                         Part {label}
                       </h2>
                       {part.sub_questions
@@ -401,9 +402,9 @@ export default function InstructorSubmissionDetail() {
                             <div className="rounded-md border bg-muted/20 p-4 text-sm text-foreground whitespace-pre-wrap">
                               {sq.answer_text || '-'}
                             </div>
-                            <div className="grid gap-3 pt-2 md:grid-cols-2">
-                              <div className="space-y-2">
-                                <div className="text-sm text-muted-foreground">Marks</div>
+                            <div className="flex gap-4 pt-2 items-start">
+                              <div className="space-y-2 w-[30%]">
+                                <div className="text-sm font-medium text-muted-foreground">Marks</div>
                                 <input
                                   type="number"
                                   min={0}
@@ -429,14 +430,14 @@ export default function InstructorSubmissionDetail() {
                                     gradeStatus[sq.id] === 'saving' ||
                                     gradesReadOnly
                                   }
-                                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                  className="w-full h-[45px] rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-[#d9f56b]/20"
                                 />
                                 <div className="text-xs text-muted-foreground">
                                   Max {sq.max_marks}
                                 </div>
                               </div>
-                              <div className="space-y-2">
-                                <div className="text-sm text-muted-foreground">Feedback</div>
+                              <div className="space-y-2 w-[70%]">
+                                <div className="text-sm font-medium text-muted-foreground">Feedback</div>
                                 <textarea
                                   value={gradeInputs[sq.id]?.feedback ?? ''}
                                   onChange={(e) => {
@@ -459,7 +460,7 @@ export default function InstructorSubmissionDetail() {
                                     gradeStatus[sq.id] === 'saving' ||
                                     gradesReadOnly
                                   }
-                                  className="min-h-[90px] w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                  className="h-[45px] w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-[#d9f56b]/20 resize-y"
                                 />
                               </div>
                             </div>

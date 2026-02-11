@@ -11,12 +11,12 @@ export default async function handler(
   }
 
   try {
-    const { moduleId, submissionId } = req.query;
-    const moduleIdStr = Array.isArray(moduleId) ? moduleId[0] : moduleId;
+    const { id, submissionId } = req.query;
+    const moduleIdStr = Array.isArray(id) ? id[0] : id;
     const submissionIdStr = Array.isArray(submissionId) ? submissionId[0] : submissionId;
 
     if (!moduleIdStr || typeof moduleIdStr !== "string") {
-      return res.status(400).json({ error: "Validation: field moduleId required" });
+      return res.status(400).json({ error: "Validation: field id required" });
     }
 
     if (!submissionIdStr || typeof submissionIdStr !== "string") {
@@ -169,19 +169,26 @@ export default async function handler(
         )
       : { rows: [] };
 
-    // Fetch answers for submission
+    // Fetch answers for submission with grades
     const answersRes = await pool.query(
       `
-      SELECT sub_question_id, answer_text
-      FROM submission_answers
-      WHERE submission_id = $1
+      SELECT a.id, a.sub_question_id, a.answer_text,
+             g.marks_awarded, g.feedback
+      FROM answers a
+      LEFT JOIN grades g ON g.answer_id = a.id
+      WHERE a.submission_id = $1
       `,
       [submissionIdStr]
     );
 
-    const answersBySubQuestion: Record<string, string> = {};
+    const answersBySubQuestion: Record<string, { id: string; answer_text: string; marks_awarded: number | null; feedback: string | null }> = {};
     answersRes.rows.forEach((row) => {
-      answersBySubQuestion[row.sub_question_id] = row.answer_text;
+      answersBySubQuestion[row.sub_question_id] = {
+        id: row.id,
+        answer_text: row.answer_text,
+        marks_awarded: row.marks_awarded ?? null,
+        feedback: row.feedback ?? null
+      };
     });
 
     const partsByQuestion: Record<string, any[]> = {};
@@ -202,12 +209,18 @@ export default async function handler(
     subQuestionsRes.rows.forEach((sq) => {
       const part = partsById[sq.part_id];
       if (part) {
+        const answerData = answersBySubQuestion[sq.id];
         part.sub_questions.push({
           id: sq.id,
           prompt: sq.prompt,
           max_marks: sq.max_marks,
           order_index: sq.order_index,
-          answer_text: answersBySubQuestion[sq.id] || ""
+          submission_answer_id: answerData?.id || null,
+          answer_text: answerData?.answer_text || "",
+          grade: {
+            marks_awarded: answerData?.marks_awarded ?? null,
+            feedback: answerData?.feedback ?? null
+          }
         });
       }
     });
@@ -244,7 +257,7 @@ export default async function handler(
       questions
     });
   } catch (err) {
-    console.error("Error in /api/instructor/modules/[moduleId]/submissions/[submissionId]:", err);
+    console.error("Error in /api/instructor/modules/[id]/submissions/[submissionId]:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

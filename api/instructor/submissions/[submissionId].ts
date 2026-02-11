@@ -136,14 +136,14 @@ export default async function handler(
             sq.order_index,
             sa.id AS submission_answer_id,
             sa.answer_text,
-            g.score AS marks_awarded,
+            g.marks_awarded,
             g.feedback
           FROM sub_questions sq
-          LEFT JOIN submission_answers sa
+          LEFT JOIN answers sa
             ON sa.sub_question_id = sq.id
            AND sa.submission_id = $1
           LEFT JOIN grades g
-            ON g.submission_answer_id = sa.id
+            ON g.answer_id = sa.id
           WHERE sq.part_id = ANY($2)
           ORDER BY sq.order_index ASC
           `,
