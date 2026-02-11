@@ -83,13 +83,13 @@ export default function InstructorDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {getPendingCount(submissionCounts) > 0 && (
-                  <div className="mb-4">
+                <div className="mb-4 min-h-[24px]">
+                  {getPendingCount(submissionCounts) > 0 && (
                     <Badge variant="secondary" className="bg-primary/10">
                       {getPendingCount(submissionCounts)} pending review
                     </Badge>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="mb-4 grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
                   <div className="rounded bg-muted p-2">
