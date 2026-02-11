@@ -303,7 +303,7 @@ export default function StudentQuestionView() {
                             : 'Awaiting grading'}
                         </span>
                         {grades[subQuestion.id]?.feedback && (
-                          <p className="mt-2 text-foreground/90 font-medium">{grades[subQuestion.id].feedback}</p>
+                          <p className="mt-2 text-foreground/90 font-medium whitespace-pre-wrap break-words">{grades[subQuestion.id].feedback}</p>
                         )}
                       </div>
                     )}
